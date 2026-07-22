@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PEA-S1 | Dashboard ติดตามหน้างาน — การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคใต้)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+// Dark theme defaults for Chart.js
+document.addEventListener('DOMContentLoaded', function() {
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.07)';
+  if (Chart.defaults.scale) {
+    Chart.defaults.scale.grid = Chart.defaults.scale.grid || {};
+    Chart.defaults.scale.grid.color = 'rgba(255,255,255,0.07)';
+  }
+});
+</script>
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Sarabun','Segoe UI',Tahoma,sans-serif;background:#0d0a1e;color:#333;display:flex;flex-direction:column;min-height:100vh}
+  
+  /* ===== Sidebar Layout ===== */
+  .app-layout{display:flex;flex:1}
+  .sidebar{
+    width:240px;min-width:240px;background:linear-gradient(180deg,#4A2E8A 0%,#2A1660 60%,#1D0F4A 100%);
+    color:white;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;
+    z-index:100;transition:transform 0.25s;
+  }
+  .sidebar.collapsed{transform:translateX(-240px)}
+  .sidebar-brand{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.1)}
+  .sidebar-brand h2{font-size:1rem;font-weight:700;line-height:1.3}
+  .sidebar-brand p{font-size:0.72rem;opacity:0.6;margin-top:4px}
+  .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+  .nav-section{padding:8px 18px 4px;font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;opacity:0.5}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;padding:10px 18px;
+    cursor:pointer;font-size:0.88rem;border-left:3px solid transparent;
+    transition:all 0.15s;text-decoration:none;color:rgba(255,255,255,0.75);
+  }
+  .nav-item:hover{background:rgba(255,255,255,0.08);color:white}
+  .nav-item.active{background:rgba(255,130,0,0.15);border-left-color:#FF8200;color:#FFB347;font-weight:700}
+  .nav-icon{font-size:1.1rem;min-width:22px;text-align:center}
+  .sidebar-footer{padding:14px 18px;border-top:1px solid rgba(255,255,255,0.1);font-size:0.72rem;opacity:0.55}
+
+  /* ===== Main Content ===== */
+  .main-wrap{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left 0.25s}
+  .main-wrap.expanded{margin-left:0}
+  
+  .topbar{
+    background:linear-gradient(135deg,#321966 0%,#5B3D9C 60%,#7B5CB5 100%);
+    color:white;padding:14px 24px;display:flex;align-items:center;gap:12px;
+    position:sticky;top:0;z-index:50;
+  }
+  .topbar-toggle{
+    background:none;border:none;color:white;cursor:pointer;font-size:1.3rem;
+    padding:4px 8px;border-radius:6px;transition:background 0.15s;
+  }
+  .topbar-toggle:hover{background:rgba(255,255,255,0.15)}
+  .topbar-title{flex:1}
+  .topbar-title h1{font-size:1.1rem;font-weight:700}
+  .topbar-title p{font-size:0.78rem;opacity:0.75;margin-top:2px}
+  .upload-btn{
+    background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);
+    color:white;padding:7px 14px;border-radius:20px;cursor:pointer;
+    font-size:0.82rem;font-family:inherit;transition:all 0.2s;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .upload-btn:hover{background:rgba(255,255,255,0.3)}
+  .date-badge{background:rgba(255,255,255,0.2);padding:5px 12px;border-radius:20px;font-size:0.8rem}
+
+  .content{padding:22px 24px;flex:1}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* KPI */
+  .kpi-row{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .kpi-card{
+    flex:1;min-width:130px;background:white;border-radius:12px;
+    padding:16px 18px;box-shadow:0 2px 8px rgba(104,81,163,0.10);border-left:4px solid #6851A3;
+    transition:transform 0.15s,box-shadow 0.15s;
+  }
+  .kpi-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(104,81,163,0.18)}
+  .kpi-card.green{border-left-color:#16a34a}
+  .kpi-card.orange{border-left-color:#ea580c}
+  .kpi-card.red{border-left-color:#dc2626}
+  .kpi-card.purple{border-left-color:#7c3aed}
+  .kpi-card.teal{border-left-color:#0d9488}
+  .kpi-label{font-size:0.75rem;color:#666;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px}
+  .kpi-value{font-size:1.8rem;font-weight:700;color:#4A2E8A}
+  .kpi-sub{font-size:0.75rem;color:#888;margin-top:3px}
+
+  /* Charts */
+  .chart-row{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .chart-card{
+    background:white;border-radius:12px;padding:18px;
+    box-shadow:0 2px 8px rgba(104,81,163,0.10);flex:1;min-width:260px;
+  }
+  .chart-card h3{font-size:0.9rem;font-weight:600;color:#4A2E8A;margin-bottom:14px}
+  .chart-card canvas{cursor:pointer}
+  .chart-hint{font-size:0.7rem;color:#94a3b8;text-align:center;margin-top:3px}
+
+  /* Tables */
+  .table-card{background:white;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(104,81,163,0.10);margin-bottom:22px}
+  .table-card h3{font-size:0.9rem;font-weight:600;color:#4A2E8A;margin-bottom:10px}
+  .table-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+  .search-input{padding:7px 11px;border:1px solid #ddd;border-radius:8px;font-size:0.83rem;flex:1;min-width:180px;outline:none;transition:border-color 0.15s}
+  .search-input:focus{border-color:#6851A3;box-shadow:0 0 0 3px rgba(104,81,163,0.12)}
+  .filter-select{padding:7px 11px;border:1px solid #ddd;border-radius:8px;font-size:0.83rem;background:white;cursor:pointer;outline:none;transition:border-color 0.15s}
+  .filter-select:focus{border-color:#6851A3}
+  .table-wrap{overflow-x:auto;max-height:420px;overflow-y:auto}
+  table{width:100%;border-collapse:collapse;font-size:0.8rem}
+  thead th{background:linear-gradient(90deg,#4A2E8A,#6851A3);color:white;padding:9px 11px;text-align:left;position:sticky;top:0;white-space:nowrap;z-index:1}
+  tbody tr{border-bottom:1px solid #f0f0f0}
+  tbody tr:hover{background:#F7F3FF}
+  tbody td{padding:8px 11px}
+  .page-info{font-size:0.77rem;color:#888;margin-top:7px}
+
+  /* Badges */
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:0.73rem;font-weight:600;white-space:nowrap}
+  .badge-green{background:#dcfce7;color:#16a34a}
+  .badge-orange{background:#fff7ed;color:#ea580c}
+  .badge-blue{background:#EDE8F7;color:#6851A3}
+  .badge-red{background:#fef2f2;color:#dc2626}
+  .badge-gray{background:#f3f4f6;color:#6b7280}
+  .badge-purple{background:#f5f3ff;color:#7c3aed}
+  .badge-teal{background:#f0fdfa;color:#0d9488}
+
+  /* Chart filter badge */
+  .swap-chart-filters{display:none;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .chart-filter-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:#EDE8F7;border:1.5px solid #6851A3;border-radius:20px;
+    padding:3px 10px 3px 12px;font-size:0.76rem;color:#4A2E8A;
+  }
+  .badge-x{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:15px;height:15px;border-radius:50%;
+    background:#D4C5F0;color:#4A2E8A;cursor:pointer;font-size:0.68rem;font-weight:700;
+  }
+  .badge-x:hover{background:#6851A3;color:white}
+
+  /* Leaderboard */
+  .leaderboard-card{background:white;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(104,81,163,0.10);margin-bottom:22px}
+  .leaderboard-card h3{font-size:0.9rem;font-weight:600;color:#4A2E8A;margin-bottom:14px}
+  .lb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:9px}
+  .lb-row{
+    display:flex;align-items:center;gap:9px;padding:9px 12px;
+    border-radius:10px;border:1.5px solid #e5e7eb;cursor:pointer;transition:all 0.15s;
+  }
+  .lb-row:hover{border-color:#6851A3;background:#EDE8F7}
+  .lb-row.active-filter{border-color:#6851A3;background:#EDE8F7}
+  .lb-rank{font-size:1.2rem;font-weight:800;min-width:34px;text-align:center;line-height:1}
+  .lb-rank.rank-1{color:#f59e0b}
+  .lb-rank.rank-2{color:#94a3b8}
+  .lb-rank.rank-3{color:#b45309}
+  .lb-rank.rank-rest{color:#9ca3af;font-size:0.95rem}
+  .lb-body{flex:1;min-width:0}
+  .lb-name{font-weight:600;font-size:0.85rem;color:#1e293b;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lb-bar-bg{background:#e5e7eb;border-radius:999px;height:7px;overflow:hidden}
+  .lb-bar-fill{height:7px;border-radius:999px;transition:width 0.6s ease}
+  .lb-meta{display:flex;justify-content:space-between;align-items:center;margin-top:3px}
+  .lb-count{font-size:0.73rem;color:#6b7280}
+  .lb-pct{font-size:0.8rem;font-weight:700}
+
+  /* Inline edit */
+  .editable-cell{cursor:pointer;position:relative}
+  .editable-cell:hover .badge{outline:2px dashed #6851A3;outline-offset:2px;border-radius:4px;opacity:0.85}
+  .editable-cell::after{content:' ✏️';font-size:0.6rem;opacity:0;transition:opacity 0.15s}
+  .editable-cell:hover::after{opacity:1}
+  .inline-select{
+    border:1.5px solid #6851A3;border-radius:6px;padding:2px 7px;
+    font-size:0.78rem;font-family:inherit;background:#EDE8F7;
+    color:#4A2E8A;cursor:pointer;outline:none;min-width:120px;
+  }
+
+  /* Toast */
+  .update-toast{
+    position:fixed;top:20px;right:20px;z-index:9999;
+    background:#16a34a;color:white;padding:11px 20px;border-radius:10px;
+    font-size:0.87rem;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.25);
+  }
+
+  /* PM table special */
+  .pm-table thead th.highlight{background:#4A2E8A}
+  .pm-period{font-size:0.75rem;color:#6b7280;white-space:nowrap}
+
+  @media(max-width:768px){
+    .sidebar{transform:translateX(-220px)}
+    .sidebar.open{transform:translateX(0)}
+    .main-wrap{margin-left:0}
+  }
+
+/* ===== PM Timeline CSS ===== */
+
+  /* ========== PM Timeline Panel ========== */
+  #panel-pm{background:#0f172a;border-radius:16px;padding:24px;margin:-22px -24px;color:#e2e8f0;min-height:calc(100vh - 64px)}
+  .pm-stat-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+  .pm-stat-chip{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:11px 16px;min-width:100px}
+  .pm-stat-chip .v{font-size:1.45rem;font-weight:800;color:#f8fafc;line-height:1}
+  .pm-stat-chip .l{font-size:0.7rem;color:#94a3b8;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+  .pm-stat-chip.rec .v{color:#FF8200}.pm-stat-chip.frtu .v{color:#f87171}.pm-stat-chip.capa .v{color:#34d399}.pm-stat-chip.lbs .v{color:#a78bfa}
+  .pm-sec-title{font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:#475569;margin-bottom:12px;margin-top:20px;font-weight:600}
+  .pm-gantt-wrap{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 22px;overflow-x:auto}
+  .pm-gantt-mhdr{display:grid;grid-template-columns:160px repeat(12,1fr);margin-bottom:6px;min-width:600px}
+  .pm-gmlab{text-align:center;font-size:.68rem;font-weight:600;color:#64748b;padding:3px 1px}
+  .pm-gmlab.today{color:#f59e0b;font-weight:800}
+  .pm-gantt-row{display:grid;grid-template-columns:160px 1fr;align-items:center;margin-bottom:5px;min-height:36px;min-width:600px}
+  .pm-prov-label{font-size:.78rem;font-weight:600;color:#cbd5e1;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pm-prov-label small{font-size:.68rem;color:#64748b;font-weight:400;margin-left:4px}
+  .pm-track{position:relative;height:28px;border-radius:6px;background:rgba(255,255,255,0.04)}
+  .pm-sep{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.06)}
+  .pm-today-line{position:absolute;top:-6px;bottom:-6px;width:2px;z-index:5;background:#f59e0b;box-shadow:0 0 8px #f59e0b88}
+  .pm-today-lbl{position:absolute;top:-22px;transform:translateX(-50%);font-size:.62rem;color:#f59e0b;font-weight:700;white-space:nowrap;background:#321966;padding:1px 5px;border-radius:4px;border:1px solid #f59e0b55}
+  .pm-bar{position:absolute;top:3px;bottom:3px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;overflow:hidden;cursor:pointer;transition:opacity .15s,transform .15s}
+  .pm-bar:hover{opacity:.85;transform:scaleY(1.12)}
+  .pm-bar-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;color:white}
+  .pm-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .pm-leg-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:.73rem;font-weight:600;cursor:pointer;border:1.5px solid;transition:opacity .15s}
+  .pm-leg-chip.dim{opacity:.3}
+  .pm-month-sel{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;margin-top:8px}
+  .pm-mbtn{background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:9px 3px;cursor:pointer;text-align:center;transition:all .2s}
+  .pm-mbtn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.3)}
+  .pm-mbtn.active{background:rgba(255,255,255,0.1);border-color:#FF8200;box-shadow:0 0 10px rgba(96,165,250,.25)}
+  .pm-mbtn.today-m{border-color:#f59e0b!important}
+  .pm-mbtn.has-d .pm-mshort{color:#f8fafc;font-weight:700}
+  .pm-mshort{font-size:.8rem;font-weight:600;color:#64748b}
+  .pm-mdots{display:flex;justify-content:center;gap:3px;margin-top:4px;min-height:6px}
+  .pm-mdot{width:6px;height:6px;border-radius:50%}
+  .pm-mcnt{font-size:.63rem;color:#64748b;margin-top:2px}
+  .pm-mbtn.has-d .pm-mcnt{color:#94a3b8}
+  .pm-detail{padding-top:20px;min-height:160px}
+  .pm-detail-hdr{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .pm-month-big{font-size:1.8rem;font-weight:900;color:#f8fafc;letter-spacing:-1px}
+  .pm-month-sub{font-size:.82rem;color:#94a3b8;margin-top:2px}
+  .pm-total-badge{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 15px;font-size:.78rem;color:#94a3b8;text-align:center}
+  .pm-total-badge strong{display:block;font-size:1.35rem;color:#f8fafc;font-weight:800;line-height:1;margin-bottom:1px}
+  .pm-empty{text-align:center;color:#475569;padding:36px 20px;font-size:.9rem}
+  .pm-prov-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .pm-pcard{background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden}
+  .pm-pcard-hdr{padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+  .pm-pcard-name{font-size:.95rem;font-weight:700}
+  .pm-pcard-total{font-size:1.4rem;font-weight:800;line-height:1}
+  .pm-pcard-total span{font-size:.72rem;font-weight:400;opacity:.8;margin-left:1px}
+  .pm-pcard-body{padding:12px 16px}
+  .pm-typebars{display:flex;gap:5px;margin-bottom:12px;height:7px;border-radius:4px;overflow:hidden}
+  .pm-typebar{height:100%;min-width:3px;border-radius:2px}
+  .pm-typeleg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .pm-typeleg-item{display:flex;align-items:center;gap:3px;font-size:.68rem;color:#94a3b8}
+  .pm-typeleg-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+  .pm-typeleg-item strong{color:#e2e8f0}
+  .pm-st-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto}
+  .pm-st-list::-webkit-scrollbar{width:3px}.pm-st-list::-webkit-scrollbar-track{background:rgba(255,255,255,.04)}.pm-st-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+  .pm-st-row{display:flex;align-items:center;justify-content:space-between;padding:6px 9px;background:rgba(255,255,255,0.04);border-radius:7px}
+  .pm-st-name{font-size:.78rem;font-weight:500;color:#cbd5e1;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pm-st-devs{display:flex;gap:3px;flex-shrink:0;margin-left:7px}
+  .pm-dbadge{font-size:.63rem;padding:1px 5px;border-radius:4px;font-weight:600}
+  .pm-drec{background:#3A1D6E;color:#C084FC}.pm-dfrtu{background:#3b1515;color:#f87171}.pm-dcapa{background:#0f2e1e;color:#34d399}.pm-dtot{background:rgba(255,255,255,.1);color:#e2e8f0;font-weight:700}
+  .pm-st-team{font-size:.62rem;color:#64748b;margin-left:3px;white-space:nowrap}
+  .pm-teamline{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
+  .pm-teambadge{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:3px 9px;font-size:.68rem;color:#94a3b8}
+
+
+/* ===== DARK PANELS (swap / ja / capa / frtu) ===== */
+#panel-swap,#panel-ja,#panel-capa,#panel-frtu{
+  background:#0d0a1e;border-radius:16px;padding:24px;margin:-22px -24px;
+  color:#e2e8f0;min-height:calc(100vh - 64px);
+}
+
+/* KPI cards */
+#panel-swap .kpi-card,#panel-ja .kpi-card,#panel-capa .kpi-card,#panel-frtu .kpi-card{
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);
+  box-shadow:0 2px 12px rgba(0,0,0,0.3);
+}
+#panel-swap .kpi-card:hover,#panel-ja .kpi-card:hover,#panel-capa .kpi-card:hover,#panel-frtu .kpi-card:hover{
+  background:rgba(255,255,255,0.09);box-shadow:0 6px 20px rgba(104,81,163,0.25);
+}
+#panel-swap .kpi-value,#panel-ja .kpi-value,#panel-capa .kpi-value,#panel-frtu .kpi-value{color:#f8fafc}
+#panel-swap .kpi-label,#panel-ja .kpi-label,#panel-capa .kpi-label,#panel-frtu .kpi-label{color:#94a3b8}
+#panel-swap .kpi-sub,#panel-ja .kpi-sub,#panel-capa .kpi-sub,#panel-frtu .kpi-sub{color:#64748b}
+
+/* Chart cards */
+#panel-swap .chart-card,#panel-ja .chart-card,#panel-capa .chart-card,#panel-frtu .chart-card{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 2px 12px rgba(0,0,0,0.25);
+}
+#panel-swap .chart-card h3,#panel-ja .chart-card h3,#panel-capa .chart-card h3,#panel-frtu .chart-card h3{color:#c4b5fd}
+#panel-swap .chart-hint,#panel-ja .chart-hint,#panel-capa .chart-hint,#panel-frtu .chart-hint{color:#475569}
+
+/* Table cards */
+#panel-swap .table-card,#panel-ja .table-card,#panel-capa .table-card,#panel-frtu .table-card{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 2px 12px rgba(0,0,0,0.25);
+}
+#panel-swap .table-card h3,#panel-ja .table-card h3,#panel-capa .table-card h3,#panel-frtu .table-card h3{color:#c4b5fd}
+
+/* Tables */
+#panel-swap thead th,#panel-ja thead th,#panel-capa thead th,#panel-frtu thead th{
+  background:linear-gradient(90deg,#3D1F7A,#6851A3)!important;color:#f0eaff;border-bottom:1px solid rgba(255,255,255,0.1)
+}
+#panel-swap tbody tr,#panel-ja tbody tr,#panel-capa tbody tr,#panel-frtu tbody tr{border-bottom:1px solid rgba(255,255,255,0.05)}
+#panel-swap tbody td,#panel-ja tbody td,#panel-capa tbody td,#panel-frtu tbody td{color:#cbd5e1}
+#panel-swap tbody tr:hover,#panel-ja tbody tr:hover,#panel-capa tbody tr:hover,#panel-frtu tbody tr:hover{background:rgba(104,81,163,0.15)}
+
+/* Inputs & selects */
+#panel-swap .search-input,#panel-ja .search-input,#panel-capa .search-input,#panel-frtu .search-input,
+#panel-swap .filter-select,#panel-ja .filter-select,#panel-capa .filter-select,#panel-frtu .filter-select{
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+  color:#e2e8f0;border-radius:8px;
+}
+#panel-swap .search-input::placeholder,#panel-ja .search-input::placeholder,
+#panel-capa .search-input::placeholder,#panel-frtu .search-input::placeholder{color:#475569}
+#panel-swap .search-input:focus,#panel-ja .search-input:focus,
+#panel-capa .search-input:focus,#panel-frtu .search-input:focus{border-color:#8B6FBE;box-shadow:0 0 0 3px rgba(104,81,163,0.2)}
+#panel-swap .filter-select option,#panel-ja .filter-select option,
+#panel-capa .filter-select option,#panel-frtu .filter-select option{background:#1a1335;color:#e2e8f0}
+
+/* Leaderboard */
+#panel-swap .leaderboard-card,#panel-ja .leaderboard-card,#panel-capa .leaderboard-card,#panel-frtu .leaderboard-card{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 2px 12px rgba(0,0,0,0.25);
+}
+#panel-swap .leaderboard-card h3,#panel-ja .leaderboard-card h3,
+#panel-capa .leaderboard-card h3,#panel-frtu .leaderboard-card h3{color:#c4b5fd}
+#panel-swap .lb-row,#panel-ja .lb-row,#panel-capa .lb-row,#panel-frtu .lb-row{
+  border:1.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03)
+}
+#panel-swap .lb-row:hover,#panel-ja .lb-row:hover,#panel-capa .lb-row:hover,#panel-frtu .lb-row:hover{
+  border-color:#8B6FBE;background:rgba(104,81,163,0.15)
+}
+#panel-swap .lb-row.active-filter,#panel-ja .lb-row.active-filter,
+#panel-capa .lb-row.active-filter,#panel-frtu .lb-row.active-filter{
+  border-color:#8B6FBE;background:rgba(104,81,163,0.2)
+}
+#panel-swap .lb-name,#panel-ja .lb-name,#panel-capa .lb-name,#panel-frtu .lb-name{color:#e2e8f0}
+#panel-swap .lb-count,#panel-ja .lb-count,#panel-capa .lb-count,#panel-frtu .lb-count{color:#64748b}
+#panel-swap .lb-bar-bg,#panel-ja .lb-bar-bg,#panel-capa .lb-bar-bg,#panel-frtu .lb-bar-bg{background:rgba(255,255,255,0.08)}
+
+/* Page info */
+#panel-swap .page-info,#panel-ja .page-info,#panel-capa .page-info,#panel-frtu .page-info{color:#475569}
+
+/* Filter badges */
+#panel-swap .chart-filter-badge,#panel-ja .chart-filter-badge,
+#panel-capa .chart-filter-badge,#panel-frtu .chart-filter-badge{
+  background:rgba(104,81,163,0.2);border-color:#8B6FBE;color:#c4b5fd
+}
+#panel-swap .badge-x,#panel-ja .badge-x,#panel-capa .badge-x,#panel-frtu .badge-x{
+  background:rgba(104,81,163,0.3);color:#c4b5fd
+}
+#panel-swap .badge-x:hover,#panel-ja .badge-x:hover,#panel-capa .badge-x:hover,#panel-frtu .badge-x:hover{
+  background:#6851A3;color:white
+}
+
+/* inline-select in dark panel */
+#panel-swap .inline-select,#panel-ja .inline-select,#panel-capa .inline-select,#panel-frtu .inline-select{
+  background:rgba(104,81,163,0.2);border-color:#8B6FBE;color:#c4b5fd
+}
+
+/* Badges adaption */
+#panel-swap .badge-blue,#panel-ja .badge-blue,#panel-capa .badge-blue,#panel-frtu .badge-blue{
+  background:rgba(104,81,163,0.25);color:#c4b5fd
+}
+#panel-swap .badge-gray,#panel-ja .badge-gray,#panel-capa .badge-gray,#panel-frtu .badge-gray{
+  background:rgba(255,255,255,0.08);color:#94a3b8
+}
+#panel-swap .badge-orange,#panel-ja .badge-orange,#panel-capa .badge-orange,#panel-frtu .badge-orange{
+  background:rgba(255,130,0,0.15);color:#FF8200
+}
+#panel-swap .badge-green,#panel-ja .badge-green,#panel-capa .badge-green,#panel-frtu .badge-green{
+  background:rgba(34,197,94,0.12);color:#4ade80
+}
+#panel-swap .badge-red,#panel-ja .badge-red,#panel-capa .badge-red,#panel-frtu .badge-red{
+  background:rgba(239,68,68,0.12);color:#f87171
+}
+#panel-swap .badge-teal,#panel-ja .badge-teal,#panel-capa .badge-teal,#panel-frtu .badge-teal{
+  background:rgba(13,148,136,0.15);color:#34d399
+}
+#panel-swap .badge-purple,#panel-ja .badge-purple,#panel-capa .badge-purple,#panel-frtu .badge-purple{
+  background:rgba(139,111,190,0.2);color:#a78bfa
+}
+/* FRTU section title */
+#panel-frtu h3{color:#c4b5fd}
+
+/* Content area background */
+.content{background:#0d0a1e}
+
+
+/* Dark scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:rgba(255,255,255,0.03)}
+::-webkit-scrollbar-thumb{background:rgba(104,81,163,0.4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(104,81,163,0.7)}
+
+
+/* JA multi-line card */
+.ja-multiline-card canvas{cursor:crosshair}
+.ja-ml-legend{} /* placeholder */
+
+</style>
+</head>
+<body>
+
+<div class="update-toast" id="updateToast"></div>
+
+<!-- Sidebar overlay on mobile -->
+<div id="sidebarOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="54" height="54" style="flex-shrink:0">
+  <defs>
+    <radialGradient id="peaGrad" cx="42%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#6A2E00"/>
+      <stop offset="100%" stop-color="#3A1600"/>
+    </radialGradient>
+  </defs>
+  <!-- Outer orange ring -->
+  <circle cx="40" cy="40" r="39" fill="#FF8200"/>
+  <circle cx="40" cy="40" r="35" fill="#FF9A1A"/>
+  <!-- Inner dark circle -->
+  <circle cx="40" cy="40" r="30" fill="url(#peaGrad)"/>
+  <!-- Lightning bolt -->
+  <polygon points="46,12 28,44 39,44 34,68 57,32 46,32" fill="#FFAA00"/>
+  <polygon points="46,12 28,44 39,44 34,68 57,32 46,32" fill="#FF8200" opacity="0.45"/>
+  <!-- Highlight gloss -->
+  <ellipse cx="32" cy="22" rx="9" ry="5" fill="white" opacity="0.08" transform="rotate(-20,32,22)"/>
+</svg>
+      <div>
+        <div style="font-size:1.35rem;font-weight:900;letter-spacing:1px;color:#FF8200;line-height:1">PEA</div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.55);margin-top:1px;letter-spacing:0.3px">Provincial Electricity Authority</div>
+      </div>
+    </div>
+    <div style="padding:8px 10px;background:rgba(255,130,0,0.12);border-radius:8px;border:1px solid rgba(255,130,0,0.25)">
+      <div style="font-size:0.9rem;font-weight:800;color:#FFB347;letter-spacing:0.5px">PEA-S1</div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);margin-top:1px">การไฟฟ้าส่วนภูมิภาค</div>
+      <div style="font-size:0.68rem;color:rgba(255,200,100,0.75);margin-top:1px">เขต 1 (ภาคใต้)</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">หน้าหลัก</div>
+    <div class="nav-item active" onclick="showPanel('swap',this)" data-panel="swap">
+      <span class="nav-icon">🔄</span><span>ติดตามสับเปลี่ยน</span>
+    </div>
+    <div class="nav-item" onclick="showPanel('ja',this)" data-panel="ja">
+      <span class="nav-icon">💰</span><span>งบ JA2900</span>
+    </div>
+    <div class="nav-item" onclick="showPanel('capa',this)" data-panel="capa">
+      <span class="nav-icon">⚡</span><span>Capa Unit</span>
+    </div>
+    <div class="nav-section" style="margin-top:8px">งานแก้ไข/บำรุงรักษา</div>
+    <div class="nav-item" onclick="showPanel('frtu',this)" data-panel="frtu">
+      <span class="nav-icon">📡</span><span>ติดตามแก้ไข FRTU</span>
+    </div>
+    <div class="nav-item" onclick="showPanel('pm',this)" data-panel="pm">
+      <span class="nav-icon">🛠️</span><span>แผนบำรุงรักษา</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">⚡ PEA-S1 ระบบจำหน่าย &nbsp;|&nbsp; <span id="sbDate"></span></div>
+</div>
+
+<!-- Main -->
+<div class="main-wrap" id="mainWrap">
+  <div class="topbar">
+    <button class="topbar-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-title">
+      <h1 id="topbarTitle">ติดตามสับเปลี่ยน</h1>
+      <p id="topbarSub">รายการสับเปลี่ยนอุปกรณ์ทั้งหมด</p>
+    </div>
+    <div style="background:rgba(255,130,0,0.2);border:1px solid rgba(255,130,0,0.45);border-radius:8px;padding:5px 12px;font-size:0.75rem;font-weight:700;color:#FFB347;letter-spacing:0.5px;white-space:nowrap">⚡ PEA-S1 &nbsp;|&nbsp; ระบบจำหน่าย</div>
+    <button class="upload-btn" onclick="document.getElementById('excelFileInput').click()">📂 อัปเดต Excel</button>
+    <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(this)">
+    <div class="date-badge" id="currentDate"></div>
+  </div>
+
+  <div class="content">
+
+  <!-- ===== Panel: สับเปลี่ยน ===== -->
+  <div class="tab-panel active" id="panel-swap">
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">อุปกรณ์ทั้งหมด</div><div class="kpi-value" id="sw-total">-</div><div class="kpi-sub">รายการ</div></div>
+      <div class="kpi-card orange"><div class="kpi-label">รอสับเปลี่ยน</div><div class="kpi-value" id="sw-wait">-</div><div class="kpi-sub">รายการ</div></div>
+      <div class="kpi-card green"><div class="kpi-label">สับเปลี่ยนแล้ว</div><div class="kpi-value" id="sw-done">-</div><div class="kpi-sub">รายการ</div></div>
+      <div class="kpi-card"><div class="kpi-label">RCS</div><div class="kpi-value" id="sw-rcs">-</div><div class="kpi-sub">รายการ</div></div>
+      <div class="kpi-card purple"><div class="kpi-label">RECLOSER</div><div class="kpi-value" id="sw-rec">-</div><div class="kpi-sub">รายการ</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card" style="max-width:290px">
+        <h3>สถานะการสับเปลี่ยน</h3>
+        <div class="chart-hint">👆 คลิก legend หรือกราฟเพื่อกรอง</div>
+        <canvas id="swapStatusChart" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>จำนวนอุปกรณ์แยกตามจังหวัด</h3>
+        <div class="chart-hint">👆 คลิกแท่งเพื่อกรองจังหวัด</div>
+        <canvas id="swapProvinceChart" height="200"></canvas>
+      </div>
+      <div class="chart-card" style="max-width:270px">
+        <h3>สถานะงบประมาณ</h3>
+        <div class="chart-hint">👆 คลิก legend หรือกราฟเพื่อกรอง</div>
+        <canvas id="swapBudgetChart" height="200"></canvas>
+      </div>
+    </div>
+    <div class="leaderboard-card">
+      <h3>🏆 จัดอันดับจังหวัด — สัดส่วนการปิดสถานะสับเปลี่ยน</h3>
+      <div class="lb-grid" id="swapLeaderboard"></div>
+    </div>
+    <div class="table-card">
+      <h3>รายการอุปกรณ์ทั้งหมด</h3>
+      <div class="swap-chart-filters" id="swap-chart-filters"></div>
+      <div class="table-controls">
+        <input class="search-input" id="swap-search" placeholder="🔍 ค้นหา รหัส / สถานที่..." oninput="filterSwap()">
+        <select class="filter-select" id="swap-filter-gff" onchange="filterSwap()"><option value="">การไฟฟ้า: ทั้งหมด</option></select>
+        <select class="filter-select" id="swap-filter-type" onchange="filterSwap()">
+          <option value="">ประเภท: ทั้งหมด</option>
+          <option value="RCS">RCS</option><option value="RECLOSER">RECLOSER</option>
+        </select>
+        <select class="filter-select" id="swap-filter-province" onchange="filterSwap()"><option value="">จังหวัด: ทั้งหมด</option></select>
+        <select class="filter-select" id="swap-filter-status" onchange="filterSwap()">
+          <option value="">สถานะ: ทั้งหมด</option>
+          <option value="รอสับเปลี่ยน">รอสับเปลี่ยน</option>
+          <option value="สับเปลี่ยนแล้ว">สับเปลี่ยนแล้ว</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>TYPE</th><th>รหัสอุปกรณ์</th><th>สถานที่ติดตั้ง</th>
+            <th>พื้นที่การไฟฟ้า</th><th>จังหวัด</th><th>ใช้งบ</th>
+            <th>สถานะงบ</th><th>สถานะงาน</th><th>สถานะสับเปลี่ยน</th>
+          </tr></thead>
+          <tbody id="swapTableBody"></tbody>
+        </table>
+      </div>
+      <div class="page-info" id="swap-page-info"></div>
+    </div>
+  </div>
+
+  <!-- ===== Panel: งบ JA2900 ===== -->
+  <div class="tab-panel" id="panel-ja">
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-value" id="ja-total">-</div><div class="kpi-sub">รายการ</div></div>
+      <div class="kpi-card green"><div class="kpi-label">ยอดงบประมาณรวม</div><div class="kpi-value" id="ja-budget">-</div><div class="kpi-sub">บาท</div></div>
+      <div class="kpi-card orange"><div class="kpi-label">ระหว่างก่อสร้าง</div><div class="kpi-value" id="ja-construct">-</div><div class="kpi-sub">รายการ</div></div>
+      <div class="kpi-card purple"><div class="kpi-label">ขึ้นทะเบียนแล้ว</div><div class="kpi-value" id="ja-reg">-</div><div class="kpi-sub">รายการ</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card" style="max-width:330px">
+        <h3>สถานะการดำเนินงาน</h3>
+        <canvas id="jaStatusChart" height="220"></canvas>
+      </div>
+    </div>
+    <!-- Multi-line status × กฟฟ -->
+    <div class="chart-card ja-multiline-card" style="margin-bottom:22px;padding-bottom:24px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h3 style="margin-bottom:4px">📊 สัดส่วนสถานะแยกตามแต่ละ กฟฟ.</h3>
+          <div class="chart-hint">แกน X = กฟฟ. แต่ละแท่ง = จำนวนอุปกรณ์ &nbsp;|&nbsp; 🟢 F4 ขึ้นทะเบียน (ดี) → 🔴 A0 WBS (เริ่มต้น) &nbsp;|&nbsp; คลิก legend ซ่อน/แสดงได้</div>
+        </div>
+        <div id="jaMLStatusTags" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"></div>
+      </div>
+      <div style="overflow-x:auto;margin-top:14px">
+        <div style="min-width:680px;position:relative">
+          <canvas id="jaMultiLineChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="leaderboard-card">
+      <h3>🏆 จัดอันดับ กฟฟ. — สัดส่วนขึ้นทะเบียนสินทรัพย์ถาวรแล้ว</h3>
+      <div class="lb-grid" id="jaLeaderboard"></div>
+    </div>
+    <div class="table-card">
+      <h3>รายการงบ JA2900</h3>
+      <div class="table-controls">
+        <input class="search-input" id="ja-search" placeholder="🔍 ค้นหา รหัส / สถานที่..." oninput="filterJa()">
+        <select class="filter-select" id="ja-filter-gff" onchange="filterJa()"><option value="">การไฟฟ้า: ทั้งหมด</option></select>
+        <select class="filter-select" id="ja-filter-device" onchange="filterJa()">
+          <option value="">อุปกรณ์: ทั้งหมด</option>
+          <option value="RCS">RCS</option><option value="Recloser">Recloser</option>
+        </select>
+        <select class="filter-select" id="ja-filter-status" onchange="filterJa()">
+          <option value="">สถานะ: ทั้งหมด</option>
+        </select>
+        <select class="filter-select" id="ja-filter-budget-status" onchange="filterJa()">
+          <option value="">สถานะงบ: ทั้งหมด</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>กฟฟ.</th><th>รหัสอุปกรณ์</th><th>สถานที่</th>
+            <th>TYPE</th><th>WBS</th><th>สถานะ</th><th>SAP</th>
+            <th>งบประมาณ (บาท)</th><th>สถานะงบประมาณ</th>
+          </tr></thead>
+          <tbody id="jaTableBody"></tbody>
+        </table>
+      </div>
+      <div class="page-info" id="ja-page-info"></div>
+    </div>
+  </div>
+
+  <!-- ===== Panel: Capa Unit ===== -->
+  <div class="tab-panel" id="panel-capa">
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">อุปกรณ์ทั้งหมด</div><div class="kpi-value" id="ca-total">-</div><div class="kpi-sub">ชุด</div></div>
+      <div class="kpi-card green"><div class="kpi-label">ติดตั้งแล้ว</div><div class="kpi-value" id="ca-installed">-</div><div class="kpi-sub">ชุด</div></div>
+      <div class="kpi-card orange"><div class="kpi-label">เบิกแล้ว</div><div class="kpi-value" id="ca-issued">-</div><div class="kpi-sub">ชุด</div></div>
+      <div class="kpi-card purple"><div class="kpi-label">ใช้งานอยู่</div><div class="kpi-value" id="ca-inuse">-</div><div class="kpi-sub">ชุด</div></div>
+      <div class="kpi-card teal"><div class="kpi-label">Total Kvar รวม</div><div class="kpi-value" id="ca-kvar">-</div><div class="kpi-sub">kVar</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card" style="max-width:300px">
+        <h3>สถานะ Capa Unit</h3>
+        <canvas id="capaStatusChart" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>จำนวนแยกตาม กฟฟ.</h3>
+        <canvas id="capaProvinceChart" height="220"></canvas>
+      </div>
+    </div>
+    <div class="leaderboard-card">
+      <h3>🏆 จัดอันดับ กฟฟ. — สัดส่วนสถานะ ติดตั้งแล้ว</h3>
+      <div class="lb-grid" id="capaLeaderboard"></div>
+    </div>
+    <div class="table-card">
+      <h3>รายการ Capa Unit ทั้งหมด</h3>
+      <div class="table-controls">
+        <input class="search-input" id="capa-search" placeholder="🔍 ค้นหา รหัส / สถานที่..." oninput="filterCapa()">
+        <select class="filter-select" id="capa-filter-gff" onchange="filterCapa()"><option value="">การไฟฟ้า: ทั้งหมด</option></select>
+        <select class="filter-select" id="capa-filter-status" onchange="filterCapa()">
+          <option value="">สถานะ: ทั้งหมด</option>
+          <option value="ติดตั้งแล้ว">ติดตั้งแล้ว</option>
+          <option value="เบิกแล้ว">เบิกแล้ว</option>
+          <option value="ใช้งานอยู่">ใช้งานอยู่</option>
+          <option value="ไม่ได้ใช้งาน">ไม่ได้ใช้งาน</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>ระดับแรงดัน</th><th>รหัสสั่งการ</th><th>สถานที่</th>
+            <th>กฟฟ.</th><th>คลัง</th><th>Total Kvar</th><th>จำนวน Unit</th>
+            <th>รายละเอียด</th><th>สถานะ</th>
+          </tr></thead>
+          <tbody id="capaTableBody"></tbody>
+        </table>
+      </div>
+      <div class="page-info" id="capa-page-info"></div>
+    </div>
+  </div>
+
+  <!-- ===== Panel: ติดตามแก้ไข FRTU ===== -->
+  <div class="tab-panel" id="panel-frtu">
+    <div class="kpi-row">
+      <div class="kpi-card red"><div class="kpi-label">FRTU Down ทั้งหมด</div><div class="kpi-value" id="fr-total">-</div><div class="kpi-sub">จุด</div></div>
+      <div class="kpi-card"><div class="kpi-label">จำนวน กฟฟ. ที่พบปัญหา</div><div class="kpi-value" id="fr-areas">-</div><div class="kpi-sub">แห่ง</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>จำนวน FRTU Down แยกตาม การไฟฟ้า</h3>
+        <div class="chart-hint">👆 คลิกแท่งเพื่อกรองการไฟฟ้า</div>
+        <canvas id="frtuBarChart" height="200"></canvas>
+      </div>
+    </div>
+    <div class="table-card">
+      <h3>รายการ FRTU Down ที่ต้องแก้ไข</h3>
+      <div class="table-controls">
+        <input class="search-input" id="frtu-search" placeholder="🔍 ค้นหา รหัส / สถานที่..." oninput="filterFrtu()">
+        <select class="filter-select" id="frtu-filter-gff" onchange="filterFrtu()"><option value="">การไฟฟ้า: ทั้งหมด</option></select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>การไฟฟ้า</th><th>รหัสสั่งการ</th>
+            <th>สถานที่</th><th>รายละเอียด</th>
+          </tr></thead>
+          <tbody id="frtuTableBody"></tbody>
+        </table>
+      </div>
+      <div class="page-info" id="frtu-page-info"></div>
+    </div>
+  </div>
+
+  <!-- ===== Panel: แผนบำรุงรักษา ===== -->
+  <!-- ===== Panel: แผนบำรุงรักษา ===== -->
+  <div class="tab-panel" id="panel-pm">
+    <!-- Stat strip -->
+    <div class="pm-stat-strip">
+      <div class="pm-stat-chip"><div class="v" id="pm-total">-</div><div class="l">ชุดทั้งหมด</div></div>
+      <div class="pm-stat-chip rec"><div class="v" id="pm-rec">-</div><div class="l">Recloser</div></div>
+      <div class="pm-stat-chip frtu"><div class="v" id="pm-frtu">-</div><div class="l">FRTU</div></div>
+      <div class="pm-stat-chip capa"><div class="v" id="pm-capa">-</div><div class="l">SW Capacitor</div></div>
+      <div class="pm-stat-chip lbs"><div class="v" id="pm-lbs">-</div><div class="l">LBS 115kV</div></div>
+      <div class="pm-stat-chip"><div class="v">6</div><div class="l">กฟ.จังหวัด</div></div>
+      <div class="pm-stat-chip"><div class="v">3</div><div class="l">ชุดงาน กบษ.</div></div>
+    </div>
+    <!-- Gantt -->
+    <div class="pm-sec-title">ไทม์ไลน์แผนบำรุงรักษา — มกราคม ถึง ธันวาคม 2569</div>
+    <div class="pm-gantt-wrap"><div id="pmGanttInner"></div></div>
+    <div class="pm-legend" id="pmLegend"></div>
+    <!-- Month selector -->
+    <div class="pm-sec-title" style="margin-top:22px">เลือกเดือนเพื่อดูรายละเอียด</div>
+    <div class="pm-month-sel" id="pmMonthSel"></div>
+    <!-- Detail -->
+    <div class="pm-detail" id="pmDetailWrap">
+      <div class="pm-empty">👆 เลือกเดือนด้านบนเพื่อดูรายละเอียดแผนการเข้าบำรุงรักษา</div>
+    </div>
+  </div>
+
+  </div><!-- end .content -->
+</div><!-- end .main-wrap -->
+
+<script>
+const DATA = {"swap":{"total":107,"waiting":60,"done":46,"by_type":{"RECLOSER":41,"RCS":66},"by_province":{"ระนอง":21,"ชุมพร":15,"ประจวบคีรีขันธ์":23,"เพชรบุรี":16,"ราชบุรี":26,"สมุทรสงคราม":6},"status_counts":{"รอสับเปลี่ยน":60,"อื่นๆ":1,"สับเปลี่ยนแล้ว":46},"budget_counts":{"ได้รับงบแล้ว 2/2569":40,"ทำประมาณการมาแล้ว":9,"ได้รับงบแล้ว 3/2569":9,"ยังไม่ได้เปลี่ยนฯ (ขอคืน)":1,"ทำพร้อมปรับปรุงระบบฯ (ยังไม่มีกำหนด)":1,"เบิกไปแล้วไม่รู้ไปใช้ที่ไหน":2,"เร่งรัดฯ":1,"รอเปลี่ยนฯ":1,"ได้รับงบแล้ว":20,"Low Gas รอเปลี่ยนฯ":1,"โหลดเยอะ ควรเปลี่ยนฯ":1,"(พร้อมพัง ควรเปลี่ยน) แต่ยังไม่มีการสับเปลี่ยนเนื่องจากย้ายจุด":1,"-":1,"ตัวจริงยืมไปติดตั้งถ้ำลับล่อ":1,"(กระแส Rcloser เพี้ยน) จำเป็นต้องเปลี่ยน":1,"(น้ำมัน) คาดว่าเบิกไปใช้งานแล้ว":1,"ของบมาแล้ว":1,"รอเช็คบันทึกของบ":1,"2 จังหวะ":2,"ยังไม่ได้เปลี่ยนฯ (ขอคืน) (อาจจะมาใช้บ้านแหลม)":1},"gff_list":["กระบุรี","กะเปอร์","กุยบุรี","จอมบึง","ชะอำ","ชุมพร","ดอนไผ่","ท่ายาง","ท่าแซะ","บางคนที","บางสะพาน","บ้านลาด","บ้านแหลม","บ้านโป่ง","ปราณบุรี","ปะทิว","ปากท่อ","ระนอง","ราชบุรี","สมุทรสงคราม","สวนผึ้ง","สุขสำราญ","หลังสวน","หัวหิน","อัมพวา","เขาย้อย"],"table":[{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CPA02R-01","สถานที่ติดตั้ง":"ด่านจปร.ฝั่งขวา (กระบุรี) / คลังฯระนอง (J060)","พื้นที่การไฟฟ้า":"กระบุรี","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CPA02R-03","สถานที่ติดตั้ง":"บ้านทุ่งมะพร้าว (กระบุรี) / คลังฯระนอง (J060)","พื้นที่การไฟฟ้า":"กระบุรี","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CPA02R-05","สถานที่ติดตั้ง":"PLUG IN 22/33 (กระบุรี) / คลังฯระนอง (J060)","พื้นที่การไฟฟ้า":"กระบุรี","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"CPA09S-06","สถานที่ติดตั้ง":"ทุ่งคา-ชุมพร -ชุมพร  (เปลี่ยนรหัสสั่งการเป็น CPA04S-06)","พื้นที่การไฟฟ้า":"ชุมพร","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"สร้างหมายเลขงาน(WBS)","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"CPB10S-25","สถานที่ติดตั้ง":"what sap","พื้นที่การไฟฟ้า":"ชุมพร","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"สร้างหมายเลขงาน(WBS)","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"TSE07S-13","สถานที่ติดตั้ง":"ร้านอาหารพี่นาง","พื้นที่การไฟฟ้า":"ท่าแซะ","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"LSA08S-25","สถานที่ติดตั้ง":"รพ.ปากน้ำหลังสวน","พื้นที่การไฟฟ้า":"หลังสวน","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"","สถานะ":"ยังไม่ได้เปลี่ยนฯ (ขอคืน)","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"BSP01S-18","สถานที่ติดตั้ง":"ตรงข้ามปั๊มเชลล์","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ทำพร้อมปรับปรุงระบบฯ (ยังไม่มีกำหนด)","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PBA06S-28","สถานที่ติดตั้ง":"หน้าอนามัยท่ายาง","พื้นที่การไฟฟ้า":"ท่ายาง","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"ใบสั่ง","สถานะ":"เบิกไปแล้วไม่รู้ไปใช้ที่ไหน","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"KHY02S-04","สถานที่ติดตั้ง":"บ้านต้นมะพร้าว","พื้นที่การไฟฟ้า":"เขาย้อย","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"KHZ01S-24","สถานที่ติดตั้ง":"ปตท ห้วยโรง-เขาย้อย","พื้นที่การไฟฟ้า":"เขาย้อย","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"เร่งรัดฯ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RBB09S-09","สถานที่ติดตั้ง":"ถนนบายพาส ราชบุรี","พื้นที่การไฟฟ้า":"ราชบุรี","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"อื่นๆ"},{"TYPE":"RCS","รหัสอุปกรณ์":"KHY02S-03","สถานที่ติดตั้ง":"ทับคาง (เขาย้อย) / คลังฯ เพชรบุรี (J010)","พื้นที่การไฟฟ้า":"เขาย้อย","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"รอเปลี่ยนฯ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PBA11S-08","สถานที่ติดตั้ง":"วัดเสาธงเรียง","พื้นที่การไฟฟ้า":"บ้านลาด","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"KHZ01S-16","สถานที่ติดตั้ง":"หน้ากฟส.เขาย้อย","พื้นที่การไฟฟ้า":"เขาย้อย","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"Low Gas รอเปลี่ยนฯ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"DNA10S-13","สถานที่ติดตั้ง":"คลองต้นเทียน","พื้นที่การไฟฟ้า":"ดอนไผ่","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNA05S-08","สถานที่ติดตั้ง":"ตรงข้าม รพ.กะเปอร์","พื้นที่การไฟฟ้า":"กะเปอร์","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNA05S-11","สถานที่ติดตั้ง":"บ้านสวนใหม่","พื้นที่การไฟฟ้า":"กะเปอร์","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNA06S-05","สถานที่ติดตั้ง":"ศูนย์พัฒนาที่ดิน","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB01S-04","สถานที่ติดตั้ง":"สวนมังคุด","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB01S-12","สถานที่ติดตั้ง":"ทิพย์ยานยนต์","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB01S-15","สถานที่ติดตั้ง":"สวนสุขภาพ","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB02S-13","สถานที่ติดตั้ง":"ทิพรัตน์การยาง","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB03S-10","สถานที่ติดตั้ง":"ข้าง กศน.","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB03S-17","สถานที่ติดตั้ง":"ป้อมตำรวจปากซอย 7","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB04S-04","สถานที่ติดตั้ง":"แขวงการทางบางนอน","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUB02S-08","สถานที่ติดตั้ง":"จุดแบ่งเขต หห-ปบ.","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"BSP05S-09","สถานที่ติดตั้ง":"สะพานวังหิน","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"PTH04R-01","สถานที่ติดตั้ง":"วัดสว่างอารมณ์ (ปากท่อ) / คลังฯ ราชบุรี (J020)","พื้นที่การไฟฟ้า":"ปากท่อ","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BPB09R-01","สถานที่ติดตั้ง":"สถานีรถไฟบ้านโป่ง (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BPB11R-01","สถานที่ติดตั้ง":"อ้ออีเขียว (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BPC08R-01","สถานที่ติดตั้ง":"ตลาดนัดหัวคลอง (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BPC09R-01","สถานที่ติดตั้ง":"บ้านโคกหม้อ (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"NOM01R-01","สถานที่ติดตั้ง":"โรงสี(บ่อเจ๊ก) (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"NOM02R-01","สถานที่ติดตั้ง":"วัดสัมมาราม (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"NOM03R-01","สถานที่ติดตั้ง":"แยกไผ่สามเกาะ (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"NOM04R-01","สถานที่ติดตั้ง":"บ้านตลาดนัด (บ้านโป่ง) / คลังฯ โพธาราม (J090)","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSR01R-01","สถานที่ติดตั้ง":"หินปิด (บางสะพาน) / คลังฯ ประจวบคีรีขันธ์ (J040)","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSP05R-01","สถานที่ติดตั้ง":"บ้านกรูด (บางสะพาน) / คลังฯ ประจวบคีรีขันธ์ (J040)","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"TSE01R-02","สถานที่ติดตั้ง":"วงเวียนสะพลี (ปะทิว) / คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ปะทิว","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CAA03R-02","สถานที่ติดตั้ง":"บ้านนายาง","พื้นที่การไฟฟ้า":"ชะอำ","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSR02R-02","สถานที่ติดตั้ง":"บ้านท่าม่วง","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSP04R-06","สถานที่ติดตั้ง":"คลองลอย","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"","สถานะงาน":"","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB05S-04","สถานที่ติดตั้ง":"สถานนีระนอง 2","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"BPA01S-03","สถานที่ติดตั้ง":"โรงสี","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"NOM04S-03","สถานที่ติดตั้ง":"บ.ดาน่อน","พื้นที่การไฟฟ้า":"บ้านโป่ง","คลังพัสดุ":"โพธาราม","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB05S-19","สถานที่ติดตั้ง":"สุสานเจ้าเมือง","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB05S-21","สถานที่ติดตั้ง":"ก่อนถึงแยกปากน้ำอันดามัน","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB07S-10","สถานที่ติดตั้ง":"หน้าสนามกีฬา","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PTH05S-05","สถานที่ติดตั้ง":"สะพานคลองโคน","พื้นที่การไฟฟ้า":"สมุทรสงคราม","คลังพัสดุ":"สมุทรสงคราม","จังหวัด":"สมุทรสงคราม","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"PTH05S-10","สถานที่ติดตั้ง":"ตรงข้าม ปตท.","พื้นที่การไฟฟ้า":"สมุทรสงคราม","คลังพัสดุ":"สมุทรสงคราม","จังหวัด":"สมุทรสงคราม","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB07S-16","สถานที่ติดตั้ง":"ปากซอยพัฒนา 7","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNB07S-22","สถานที่ติดตั้ง":"หน้าศุลกากร","พื้นที่การไฟฟ้า":"ระนอง","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"CAB05S-08","สถานที่ติดตั้ง":"โรงแรมดุสิต tie","พื้นที่การไฟฟ้า":"ชะอำ","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"CAB06S-03","สถานที่ติดตั้ง":"ไทยเดนมาร์ก","พื้นที่การไฟฟ้า":"ชะอำ","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"CAB09S-12","สถานที่ติดตั้ง":"วงเวียนคุณหญิงเนื่อง","พื้นที่การไฟฟ้า":"ชะอำ","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"PBA10S-32","สถานที่ติดตั้ง":"แยกบ้านหนองชุมแสง","พื้นที่การไฟฟ้า":"ท่ายาง","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNA03S-25","สถานที่ติดตั้ง":"ไฟฟ้าสุขสำราญ","พื้นที่การไฟฟ้า":"สุขสำราญ","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RNA05S-24","สถานที่ติดตั้ง":"คลองบางกล้วย","พื้นที่การไฟฟ้า":"สุขสำราญ","คลังพัสดุ":"ระนอง","จังหวัด":"ระนอง","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PTH07S-06","สถานที่ติดตั้ง":"สหกรณ์การเกษตรวัดเพลง","พื้นที่การไฟฟ้า":"ปากท่อ","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"ใบสั่ง","สถานะ":"เบิกไปแล้วไม่รู้ไปใช้ที่ไหน","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RBB02S-10","สถานที่ติดตั้ง":"BIG C","พื้นที่การไฟฟ้า":"ราชบุรี","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"ตรวจสอบข้อมูลสำคัญทางบัญชี","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"CBN03S-20","สถานที่ติดตั้ง":"ธารธนวัฒน์","พื้นที่การไฟฟ้า":"จอมบึง","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"KUA09S-04","สถานที่ติดตั้ง":"กุยบุรี -ประจวบคีรีขันธ์","พื้นที่การไฟฟ้า":"กุยบุรี","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"BSR01S-05","สถานที่ติดตั้ง":"บริษัทไทยอินเตอร์","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"CBN04S-23","สถานที่ติดตั้ง":"วงเวียนด่านทับตะโก","พื้นที่การไฟฟ้า":"จอมบึง","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RBC05S-12","สถานที่ติดตั้ง":"รพ.พร้อมแพทย์","พื้นที่การไฟฟ้า":"ราชบุรี","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RBC02S-09","สถานที่ติดตั้ง":"หน้าเมือง-เมืองราชบุรี -ราชบุรี","พื้นที่การไฟฟ้า":"ราชบุรี","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CAB09R-01","สถานที่ติดตั้ง":"หน้ารพ.ชะอำ/ชะอำ/คลังฯ เพชรบุรี (J010)","พื้นที่การไฟฟ้า":"ชะอำ","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"HUC05R-01","สถานที่ติดตั้ง":"บ้านนาตาช้าง/หัวหิน/คลังฯ หัวหิน(J070)","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"โหลดเยอะ ควรเปลี่ยนฯ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSP04R-02","สถานที่ติดตั้ง":"บ้านวังน้ำเขียว/บางสะพาน/คลังฯ ประจวบคีรีขันธ์ (J040)","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"แล้วเสร็จ-ทางเทคนิค (TECO)","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSP04R-06","สถานที่ติดตั้ง":"บ้านคลองลอย/บางสะพาน/คลังฯ ประจวบคีรีขันธ์ (J040)","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CPA04R-01","สถานที่ติดตั้ง":"บ้านเขายาว/ชุมพร/คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ชุมพร","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CPA10R-03","สถานที่ติดตั้ง":"บ้านไชตู คลังฯ ชุมพร (J050) ด่าน จปร.คลังฯ ระนอง (J060) เปลี่ยนเป็น","พื้นที่การไฟฟ้า":"ชุมพร","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"(พร้อมพัง ควรเปลี่ยน) แต่ยังไม่มีการสับเปลี่ยนเนื่องจากย้ายจุด","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"QTA02R-01","สถานที่ติดตั้ง":"หน้าค่าย/ท่าแซะ/คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ท่าแซะ","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"ใบสั่ง","สถานะ":"-","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"TSE02R-03","สถานที่ติดตั้ง":"ป้องกัน AVR ดอนยาง/ท่าแซะ/คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ท่าแซะ","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"ใบสั่ง","สถานะ":"ตัวจริงยืมไปติดตั้งถ้ำลับล่อ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"TSE06R-01","สถานที่ติดตั้ง":"บ้านไชยราช/ท่าแซะ/คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ท่าแซะ","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"TSE09R-02","สถานที่ติดตั้ง":"บ้านวังลุ่ม/ท่าแซะ/คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ท่าแซะ","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"TSE10R-01","สถานที่ติดตั้ง":"บ้านดอนตะเคียน/ท่าแซะ/คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"ท่าแซะ","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"KDA02R-01","สถานที่ติดตั้ง":"แก่งกระจานคันทรีคลับ/ท่ายาง/คลังฯ เพชรบุรี (J010)","พื้นที่การไฟฟ้า":"ท่ายาง","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"PBA01R-02","สถานที่ติดตั้ง":"เซียนหนิง/บ้านแหลม/คลังฯ เพชรบุรี (J010)","พื้นที่การไฟฟ้า":"บ้านแหลม","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"(กระแส Rcloser เพี้ยน) จำเป็นต้องเปลี่ยน","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CBN05R-04","สถานที่ติดตั้ง":"หนองกระทุ่ม/จอมบึง/คลังฯ ราชบุรี (J020)","พื้นที่การไฟฟ้า":"จอมบึง","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"CBN10R-01","สถานที่ติดตั้ง":"ป้องกัน AVR ศูนย์เกิดใหม่/จอมบึง/คลังฯ ราชบุรี (J020)","พื้นที่การไฟฟ้า":"จอมบึง","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"PTH04R-04","สถานที่ติดตั้ง":"บ.พุเกตุ/ปากท่อ/คลังฯ ราชบุรี (J020)","พื้นที่การไฟฟ้า":"ปากท่อ","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"ใบสั่ง","สถานะ":"(น้ำมัน) คาดว่าเบิกไปใช้งานแล้ว","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"XPA05R-01","สถานที่ติดตั้ง":"บ้านเขาไก่แจ้/สวนผึ้ง/คลังฯ ราชบุรี (J020)","พื้นที่การไฟฟ้า":"สวนผึ้ง","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"JA2900","สถานะ":"ของบมาแล้ว","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"SSA07R-02","สถานที่ติดตั้ง":"บ้านคลองเขตเมือง/สมุทรสงคราม/คลังฯ สมุทรสงคราม(J030)","พื้นที่การไฟฟ้า":"สมุทรสงคราม","คลังพัสดุ":"สมุทรสงคราม","จังหวัด":"สมุทรสงคราม","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"สร้างหมายเลขงาน(WBS)","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"LSA01R-01","สถานที่ติดตั้ง":"บ้านควนเสาธง/หลังสวน/คลังฯ ชุมพร (J050) (ย้ายไปบางมะพร้าว)","พื้นที่การไฟฟ้า":"หลังสวน","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"DNA05S-14","สถานที่ติดตั้ง":"ไลน์วัดโบสถ์","พื้นที่การไฟฟ้า":"บางคนที","คลังพัสดุ":"สมุทรสงคราม","จังหวัด":"สมุทรสงคราม","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"DNA03S-07","สถานที่ติดตั้ง":"แยกอัมพวา","พื้นที่การไฟฟ้า":"อัมพวา","คลังพัสดุ":"สมุทรสงคราม","จังหวัด":"สมุทรสงคราม","ใช้งบ":"JA2900","สถานะ":"รอเช็คบันทึกของบ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PTH10S-15","สถานที่ติดตั้ง":"อู่ต่อเรือ (ไม่มี FRTU)","พื้นที่การไฟฟ้า":"สมุทรสงคราม","คลังพัสดุ":"สมุทรสงคราม","จังหวัด":"สมุทรสงคราม","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"BSR07S-10","สถานที่ติดตั้ง":"หน้านากุ้งฝั่งแดง (ยังไม่เห็นขอ ADS)","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 2/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"CPA09S-16","สถานที่ติดตั้ง":"ตรงข้ามเพื่อนใจ (เปลี่ยนแล้วที่ไหน ?)","พื้นที่การไฟฟ้า":"ชุมพร","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUB01S-04","สถานที่ติดตั้ง":"รร.โรตารี่","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"ตรวจสอบข้อมูลสำคัญทางบัญชี","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PBB04S-21","สถานที่ติดตั้ง":"ดอนยี่พรม","พื้นที่การไฟฟ้า":"ท่ายาง","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"CBN09S-19","สถานที่ติดตั้ง":"ดงลำไย","พื้นที่การไฟฟ้า":"จอมบึง","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"PNA01S-24","สถานที่ติดตั้ง":"แยกหนองบัว","พื้นที่การไฟฟ้า":"ปราณบุรี","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"2 จังหวะ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"PBA10S-14","สถานที่ติดตั้ง":"โค้งท่าพุ่ง","พื้นที่การไฟฟ้า":"บ้านลาด","คลังพัสดุ":"เพชรบุรี","จังหวัด":"เพชรบุรี","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"PNA03S-07","สถานที่ติดตั้ง":"หลังสมาคมชาวไร่","พื้นที่การไฟฟ้า":"ปราณบุรี","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"2 จังหวะ","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUC01S-04","สถานที่ติดตั้ง":"โค้งหัวนา พื้นที่:","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"RBC05S-10","สถานที่ติดตั้ง":"ไฟแดงแยกคูบัว","พื้นที่การไฟฟ้า":"ราชบุรี","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUC03S-12","สถานที่ติดตั้ง":"ประปาสวนสน","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUB04S-10","สถานที่ติดตั้ง":"หอนาฬิกา (วงจรล่าง)","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"ตรวจสอบข้อมูลสำคัญทางบัญชี","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUC03S-11","สถานที่ติดตั้ง":"หอนาฬิกา (วงจรบน)","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"ตรวจสอบข้อมูลสำคัญทางบัญชี","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RCS","รหัสอุปกรณ์":"HUB05S-11","สถานที่ติดตั้ง":"หัวหิน-หัวหิน -ประจวบคีรีขันธ์","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว 3/2569","สถานะงาน":"อยู่ระหว่างงานก่อสร้าง","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"RNA04R-02","สถานที่ติดตั้ง":"ไปรษณีย์พะโต๊ะ (หลังสวน) / คลังฯ ชุมพร (J050)","พื้นที่การไฟฟ้า":"หลังสวน","คลังพัสดุ":"ชุมพร","จังหวัด":"ชุมพร","ใช้งบ":"JA2900","สถานะ":"ทำประมาณการมาแล้ว","สถานะงาน":"สร้างหมายเลขงาน(WBS)","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"RBC04R-01","สถานที่ติดตั้ง":"บ้านท่าแจ่","พื้นที่การไฟฟ้า":"ราชบุรี","คลังพัสดุ":"ราชบุรี","จังหวัด":"ราชบุรี","ใช้งบ":"","สถานะ":"ยังไม่ได้เปลี่ยนฯ (ขอคืน) (อาจจะมาใช้บ้านแหลม)","สถานะงาน":"-","รอสับเปลี่ยน":true,"สับเปลี่ยนแล้ว":false,"กลุ่มสถานะ":"รอสับเปลี่ยน"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"BSR02R-04","สถานที่ติดตั้ง":"แยกสวนป่าบางเบิด","พื้นที่การไฟฟ้า":"บางสะพาน","คลังพัสดุ":"ประจวบคีรีขันธ์","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"JA2900","สถานะ":"ได้รับงบแล้ว","สถานะงาน":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"},{"TYPE":"RECLOSER","รหัสอุปกรณ์":"HUB01R-02","สถานที่ติดตั้ง":"บ้านหนองกระทุ่ม","พื้นที่การไฟฟ้า":"หัวหิน","คลังพัสดุ":"หัวหิน","จังหวัด":"ประจวบคีรีขันธ์","ใช้งบ":"ใบสั่ง","สถานะ":"","สถานะงาน":"-","รอสับเปลี่ยน":false,"สับเปลี่ยนแล้ว":true,"กลุ่มสถานะ":"สับเปลี่ยนแล้ว"}]},"ja2900":{"total":88,"budget_total":2562561.19,"by_status":{"อยู่ระหว่างงานก่อสร้าง":43,"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว":24,"-":5,"แล้วเสร็จ-ทางเทคนิค (TECO)":7,"ตรวจสอบข้อมูลสำคัญทางบัญชี":4,"สร้างหมายเลขงาน(WBS)":5},"by_device":{"RCS":56,"Recloser":5,"RECLOSER":27},"gff_list":["กฟจ.ชพ","กฟจ.พบ.","กฟจ.รน","กฟจ.รบ.","กฟจ.สส","กฟส.กย.","กฟส.จบง.","กฟส.ชอ.","กฟส.ดผ.","กฟส.ทซ.","กฟส.ทย.","กฟส.ท่าแซะ","กฟส.บคท.","กฟส.บปง.","กฟส.บลด.","กฟส.บสพ.","กฟส.บ้านลาด","กฟส.ลส.","กฟส.สนผ.","กฟส.สส.","กฟส.หห."],"table":[{"กฟฟ":"กฟส.บ้านลาด","รหัสอุปกรณ์":"PBA11S-08","สถานที่":"วัดเสาธงเรียง","TYPE":"RCS","ใบสั่ง":"I-68-J-BAL68.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":26506.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ท่าแซะ","รหัสอุปกรณ์":"TSE09R-02","สถานที่":"วังลุ่ม","TYPE":"Recloser","ใบสั่ง":"I-68-J-TAS68.JA.2903","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":74764.59,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ท่าแซะ","รหัสอุปกรณ์":"TSE10R-01","สถานที่":"ดอนตะเคียน","TYPE":"Recloser","ใบสั่ง":"I-68-J-TAS68.JA.2904","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":40475.78,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ท่าแซะ","รหัสอุปกรณ์":"TSE06R-01","สถานที่":"เขาไชยราช","TYPE":"Recloser","ใบสั่ง":"I-68-J-TAS68.JA.2905","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":56589.42,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ชอ.","รหัสอุปกรณ์":"CAB05S-08","สถานที่":"หน้าโรงแรมดุสิตธานี","TYPE":"RCS","ใบสั่ง":"I-68-J-CHA68.JA.2902","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":9617.44,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ชอ.","รหัสอุปกรณ์":"CAB06S-03","สถานที่":"ไทย เดนมาร์ก","TYPE":"RCS","ใบสั่ง":"I-68-J-CHA68.JA.2903","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":12411.53,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ชอ.","รหัสอุปกรณ์":"CAA03R-02","สถานที่":"หนองเผาถ่าน","TYPE":"Recloser","ใบสั่ง":"I-68-J-CHA68.JA.2904","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":58257.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ชอ.","รหัสอุปกรณ์":"CAB09R-01","สถานที่":"หน้ารพ.ชะอำ","TYPE":"Recloser","ใบสั่ง":"I-68-J-CHA68.JA.2905","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":58257.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ชอ.","รหัสอุปกรณ์":"CAB09S-12","สถานที่":"วงเวียนชะอำ","TYPE":"RCS","ใบสั่ง":"I-68-J-CHA68.JA.2901","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":10089.25,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รบ.","รหัสอุปกรณ์":"RBC02S-09","สถานที่":"หน้าเมือง-เมืองราชบุรี -ราชบุรี","TYPE":"RCS","ใบสั่ง":"I-68-J-RBR68.JA.2903","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":30690.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รบ.","รหัสอุปกรณ์":"RBC05S-12","สถานที่":"รพ.พร้อมแพทย์","TYPE":"RCS","ใบสั่ง":"I-68-J-RBR68.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":30690.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รบ.","รหัสอุปกรณ์":"CBN01S-13","สถานที่":"หน้าค่ายเขากรวด","TYPE":"RCS","ใบสั่ง":"I-68-J-RBR68.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":31140.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.พบ.","รหัสอุปกรณ์":"PBA04S-17","สถานที่":"วัดป้อม","TYPE":"RCS","ใบสั่ง":"I-68-J-PBR68.JA.2901","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":13394.89,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.พบ.","รหัสอุปกรณ์":"KHY08S-11","สถานที่":"ก่อนวัดหนองควง","TYPE":"RCS","ใบสั่ง":"I-68-J-PBR68.JA.2902","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":4594.75,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.พบ.","รหัสอุปกรณ์":"PBB02S-04","สถานที่":"บ้านดอนยาง","TYPE":"RCS","ใบสั่ง":"I-68-J-PBR68.JA.2903","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":10555.73,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.พบ.","รหัสอุปกรณ์":"PBB04S-04","สถานที่":"ร้านคุ้งกระพง","TYPE":"RCS","ใบสั่ง":"I-68-J-PBR68.JA.2904","สถานะ":"-","SAP":"F2","งบประมาณ":6248.89,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.พบ.","รหัสอุปกรณ์":"PBA07S-10","สถานที่":"ประตูวัดยาง","TYPE":"RCS","ใบสั่ง":"I-68-J-PBR68.JA.2905","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":874.44,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.พบ.","รหัสอุปกรณ์":"PBB02S-03","สถานที่":"หน้าสถานีเพชรบุรี2","TYPE":"RCS","ใบสั่ง":"I-68-J-PBR68.JA.2906","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":9729.1,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPA01S-03","สถานที่":"โรงสี","TYPE":"RCS","ใบสั่ง":"I-68-J-BAP68.JA.2901","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":10249.82,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"NOM04S-03","สถานที่":"บ.ดาน่อน","TYPE":"RCS","ใบสั่ง":"I-68-J-BAP68.JA.2902","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":18054.73,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บลด.","รหัสอุปกรณ์":"PBA10S-14","สถานที่":"โค้งท่าพุ่ง","TYPE":"RCS","ใบสั่ง":"I-68-J-BAL68.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":27039.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSP05R-01","สถานที่":"บ้านกรูด","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BGN68.JA.2210","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":54098.17,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSR01R-01","สถานที่":"หินปิด","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BGN68.JA.2211","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":56770.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSR02R-04","สถานที่":"บ้านห้วยสัก","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BGN68.JA.2212","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":53568.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSR02R-02","สถานที่":"ท่าม่วง","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BGN68.JA.2213","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":56207.76,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSP04R-02","สถานที่":"วังน้ำเขียว","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BGN68.JA.2214","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":57148.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSP04R-06","สถานที่":"คลองลอย","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BGN68.JA.2215","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":55563.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.จบง.","รหัสอุปกรณ์":"CBN05R-04","สถานที่":"บ้านหนองกระทุ่ม","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-JOB69.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":54400.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.จบง.","รหัสอุปกรณ์":"CBN10R-01","สถานที่":"ป้องกัน AVR  ศูนย์เกิดใหม่","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-JOB69.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":54400.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ทย.","รหัสอุปกรณ์":"PBA10S-32","สถานที่":"แยกบ้านหนองชุมแสง","TYPE":"RCS","ใบสั่ง":"I-68-J-TAY69.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":26414.52,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ทย.","รหัสอุปกรณ์":"KDA02R -01","สถานที่":"แก่งกระจานคันทรีคลับ","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-TAY69.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":76974.24,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSR01S-05","สถานที่":"หน้าบริษัทไทยอินเตอร์","TYPE":"RCS","ใบสั่ง":"I-68-J-BGN69.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25568.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.สส.","รหัสอุปกรณ์":"PTH05S-05","สถานที่":"สะพานคลองโคน","TYPE":"RCS","ใบสั่ง":"I-68-J-SSK69.JA.2907","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":27293.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.สส.","รหัสอุปกรณ์":"PTH05S-10","สถานที่":"ตรงข้าม ปตท.","TYPE":"RCS","ใบสั่ง":"I-68-J-SSK69.JA.2908","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":27068.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPB09R-01","สถานที่":"สถานีรถไฟบ้านโป่ง (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2903","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":39160.02,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPC09R-01","สถานที่":"บ้านโคกหม้อ (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2904","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":35755.88,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPB11R-01","สถานที่":"อ้ออีเขียว (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2905","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":57039.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPB11R-02","สถานที่":"โค้งบ้านดงสัก","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2906","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":18152.29,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPB11R-03","สถานที่":"มอเตอร์เวย์","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2907","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":20737.15,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"NOM04R-01","สถานที่":"บ้านตลาดนัด (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2908","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":58954.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"BPC08R-01","สถานที่":"ตลาดนัดหัวคลอง (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2909","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":57039.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"NOM01R-01","สถานที่":"โรงสี(บ่อเจ๊ก) (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2910","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":21296.58,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"NOM02R-01","สถานที่":"วัดสัมมาราม (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2911","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":22437.72,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บปง.","รหัสอุปกรณ์":"NOM03R-01","สถานที่":"แยกไผ่สามเกาะ (บ้านโป่ง)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-BAP69.JA.2912","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":57039.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNA03S-25","สถานที่":"ไฟฟ้าสุขสำราญ","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNA05S-08","สถานที่":"ตรงข้าม รพ.กะเปอร์","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNA05S-11","สถานที่":"บ้านสวนใหม่","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2903","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25364.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNA05S-24","สถานที่":"คลองบางกล้วย","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2904","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNA06S-05","สถานที่":"ศูนย์พัฒนาที่ดิน","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2905","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB01S-04","สถานที่":"สวนมังคุด","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2906","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB01S-15","สถานที่":"สวนสุขภาพ","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2907","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB02S-13","สถานที่":"ทิพรัตน์การยาง","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2908","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB03S-10","สถานที่":"ข้าง กศน.","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2909","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25364.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB03S-17","สถานที่":"ป้อมตำรวจปากซอย 7","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2910","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB04S-04","สถานที่":"แขวงการทางบางนอน","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2911","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25364.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB05S-04","สถานที่":"สถานนีระนอง 2","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2912","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25364.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB05S-19","สถานที่":"สุสานเจ้าเมือง","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2913","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB05S-21","สถานที่":"ก่อนถึงแยกปากน้ำอันดามัน","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2914","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB07S-10","สถานที่":"หน้าสนามกีฬา","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2915","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB07S-16","สถานที่":"ปากซอยพัฒนา 7","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2916","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB07S-22","สถานที่":"หน้าศุลกากร","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2917","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25364.4,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"RNB01S-12","สถานที่":"ทิพย์ยานยนต์","TYPE":"RCS","ใบสั่ง":"I-68-J-RAN69.JA.2918","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25590.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"CPA02R-01","สถานที่":"ด่านจปร.ฝั่งขวา (กระบุรี)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-RAN69.JA.2919","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":57666.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"CPA02R-03","สถานที่":"บ้านทุ่งมะพร้าว (กระบุรี)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-RAN69.JA.2920","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":57666.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รน","รหัสอุปกรณ์":"CPA02R-05","สถานที่":"PLUG IN 22/33 (กระบุรี)","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-RAN69.JA.2921","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":57666.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSP05S-09","สถานที่":"สะพานวังหิน","TYPE":"RCS","ใบสั่ง":"I-68-J-BGN69.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25350.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บสพ.","รหัสอุปกรณ์":"BSR07S-10","สถานที่":"หน้านากุ้งฝั่งแดง","TYPE":"RCS","ใบสั่ง":"I-68-J-BGN69.JA.2903","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":25126.2,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.สส.","รหัสอุปกรณ์":"PTH10S-15","สถานที่":"อู่ต่่อเรือ","TYPE":"RCS","ใบสั่ง":"I-68-J-SSK69.JA.2909","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":29446.8,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.กย.","รหัสอุปกรณ์":"KUA09S-04","สถานที่":"แยกกุยบุรี","TYPE":"RCS","ใบสั่ง":"I-68-J-KUB69.JA.2901","สถานะ":"ขึ้นทะเบียนสินทรัพย์ถาวรแล้ว","SAP":"F4","งบประมาณ":21053.5,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.บคท.","รหัสอุปกรณ์":"DNA05S-14","สถานที่":"ไลน์วัดโบสถ์","TYPE":"RCS","ใบสั่ง":"I-68-J-BKT69.JA.2901","สถานะ":"-","SAP":"C3","งบประมาณ":25809.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.รบ.","รหัสอุปกรณ์":"RBB02S-10","สถานที่":"BIG C","TYPE":"RCS","ใบสั่ง":"I-68-J-RBR69.JA.2901","สถานะ":"ตรวจสอบข้อมูลสำคัญทางบัญชี","SAP":"A1","งบประมาณ":0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.สส","รหัสอุปกรณ์":"SSA07R-02","สถานที่":"บ้านคลองเขตเมือง","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-SSK69.JA.2910","สถานะ":"สร้างหมายเลขงาน(WBS)","SAP":"A0","งบประมาณ":0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ดผ.","รหัสอุปกรณ์":"DNA10S-13","สถานที่":"คลองต้นเมือง","TYPE":"RCS","ใบสั่ง":"I-68-J-DOP69.JA.2901","สถานะ":"แล้วเสร็จ-ทางเทคนิค (TECO)","SAP":"D2","งบประมาณ":26337.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.หห.","รหัสอุปกรณ์":"HUB05S-11","สถานที่":"โต๊ะสนุกตาลเดี่ยว","TYPE":"RCS","ใบสั่ง":"I-68-J-HUH69.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":24930.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.หห.","รหัสอุปกรณ์":"HUC01S-04","สถานที่":"โค้งหัวนา","TYPE":"RCS","ใบสั่ง":"I-68-J-HUH69.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":24930.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.หห.","รหัสอุปกรณ์":"HUC03S-12","สถานที่":"ประปาสวนสน","TYPE":"RCS","ใบสั่ง":"I-68-J-HUH69.JA.2903","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":24930.6,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ทซ.","รหัสอุปกรณ์":"TSE01R-02","สถานที่":"วงเวียนสะพลี","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-TAS69.JA.2901","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":106123.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟส.ทซ.","รหัสอุปกรณ์":"TSE07S-13","สถานที่":"ร้านอาหารพี่นาง","TYPE":"RCS","ใบสั่ง":"I-68-J-TAS69.JA.2902","สถานะ":"อยู่ระหว่างงานก่อสร้าง","SAP":"C1","งบประมาณ":42711.0,"สถานะงบประมาณ":"ได้รับงบประมาณแล้ว"},{"กฟฟ":"กฟจ.ชพ","รหัสอุปกรณ์":"CPA09S-06","สถานที่":"ทุ่งคา-ชุมพร -ชุมพร","TYPE":"RCS","ใบสั่ง":"I-69-J-CHP69.M4.2902","สถานะ":"สร้างหมายเลขงาน(WBS)","SAP":"A0","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟจ.ชพ","รหัสอุปกรณ์":"CPB10S-25","สถานที่":"แซ่บอีสาน ชุมพร","TYPE":"RCS","ใบสั่ง":"I-69-J-CHP69.M4.2901","สถานะ":"สร้างหมายเลขงาน(WBS)","SAP":"A0","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.จบง.","รหัสอุปกรณ์":"CBN03S-20","สถานที่":"ธารธนวัฒน์","TYPE":"RCS","ใบสั่ง":"I-69-J-JOB69.M4.2903","สถานะ":"-","SAP":"ไม่พบใน SAP","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.จบง.","รหัสอุปกรณ์":"CBN04S-23","สถานที่":"วงเวียนด่านทับตะโก","TYPE":"RCS","ใบสั่ง":"I-69-J-JOB69.M4.2904","สถานะ":"-","SAP":"ไม่พบใน SAP","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.หห.","รหัสอุปกรณ์":"HUC03S-11","สถานที่":"หอนาฬิกา (วงจรบน)","TYPE":"RCS","ใบสั่ง":"I-68-J-HUH69.JA.2904","สถานะ":"ตรวจสอบข้อมูลสำคัญทางบัญชี","SAP":"A1","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.หห.","รหัสอุปกรณ์":"HUB04S-10","สถานที่":"หอนาฬิกา (วงจรล่าง)","TYPE":"RCS","ใบสั่ง":"I-68-J-HUH69.JA.2905","สถานะ":"ตรวจสอบข้อมูลสำคัญทางบัญชี","SAP":"A1","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.หห.","รหัสอุปกรณ์":"HUB01S-04","สถานที่":"รร.โรตารี่","TYPE":"RCS","ใบสั่ง":"I-68-J-HUH69.JA.2906","สถานะ":"ตรวจสอบข้อมูลสำคัญทางบัญชี","SAP":"A1","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.ลส.","รหัสอุปกรณ์":"LSA10R-01","สถานที่":"บ้านควนเสาธง","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-LUS69.JA.2902","สถานะ":"สร้างหมายเลขงาน(WBS)","SAP":"A0","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.ลส.","รหัสอุปกรณ์":"RNA04R-02","สถานที่":"ไปรษณีย์พะโต๊ะ","TYPE":"RECLOSER","ใบสั่ง":"I-68-J-LUS69.JA.2901","สถานะ":"สร้างหมายเลขงาน(WBS)","SAP":"A0","งบประมาณ":0,"สถานะงบประมาณ":""},{"กฟฟ":"กฟส.สนผ.","รหัสอุปกรณ์":"XPA05R-01","สถานที่":"เขาไก่แจ๊","TYPE":"RECLOSER","ใบสั่ง":"I-69-J-SGG69.M4.2901","สถานะ":"-","SAP":"ไม่พบใน SAP","งบประมาณ":0,"สถานะงบประมาณ":""}]},"capa":{"total":35,"installed":11,"issued":8,"in_use":5,"not_use":11,"total_kvar":48600.0,"by_province":{"กฟจ.ประจวบคีรีขันธ์":1,"กฟส.บ้านลาด":2,"กฟส.ดําเนินสะดวก":2,"กฟส.โพธาราม":1,"กฟจ.สมุทรสงคราม":2,"กฟจ.ระนอง":1,"กฟส.กะเปอร์":1,"กฟส.บ้างสะพานน้อย":1,"กฟส.กระบุรี":1,"กฟจ.ชุมพร":2,"กฟจ.เพชรบุรี":1,"กฟส.ปราณบุรี":1,"กฟส.สามร้อยยอด":1,"กฟส.ท่ายาง":4,"กฟส.อัมพวา":1,"กฟส.ท่าแซะ":4,"กฟส.ทุ่งตะโก":1,"กฟส.ปากน้ำหลังสวน":1,"กฟส.หลังสวน":2,"กฟส.ทับสะแก":1,"กฟส.จอมบึง":1,"กฟส.ปากท่อ":1,"กฟส.เมืองราชบุรี":1,"กฟส.วัดเพลง":1},"status_counts":{"ติดตั้งแล้ว":11,"เบิกแล้ว":8,"ไม่ได้ใช้งาน":11,"ใช้งานอยู่":5},"gff_list":["กฟจ.ชุมพร","กฟจ.ประจวบคีรีขันธ์","กฟจ.ระนอง","กฟจ.สมุทรสงคราม","กฟจ.เพชรบุรี","กฟส.กระบุรี","กฟส.กะเปอร์","กฟส.จอมบึง","กฟส.ดําเนินสะดวก","กฟส.ทับสะแก","กฟส.ทุ่งตะโก","กฟส.ท่ายาง","กฟส.ท่าแซะ","กฟส.บ้างสะพานน้อย","กฟส.บ้านลาด","กฟส.ปราณบุรี","กฟส.ปากท่อ","กฟส.ปากน้ำหลังสวน","กฟส.วัดเพลง","กฟส.สามร้อยยอด","กฟส.หลังสวน","กฟส.อัมพวา","กฟส.เมืองราชบุรี","กฟส.โพธาราม"],"table":[{"ระดับแรงดัน":"","รหัสสั่งการ":"PDA04C-01","สถานที่":"ไทยซังเกียว","กฟฟ":"กฟจ.ประจวบคีรีขันธ์","คลัง":"ประจวบคีรีขันธ์","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"ตู้กดไม่ได้ แข็ง / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBA06C-01","สถานที่":"หน้าแม่กิมไล้","กฟฟ":"กฟส.บ้านลาด","คลัง":"เพชรบุรี","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBA11C-03","สถานที่":"ปากทางเข้าวัดถํ ารงค์","กฟฟ":"กฟส.บ้านลาด","คลัง":"เพชรบุรี","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"DNA07C-02","สถานที่":"ก่อนถึงคลองชลประทาน","กฟฟ":"กฟส.ดําเนินสะดวก","คลัง":"โพธาราม","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"Fuse ลูกคาปา เฟส A 1 เส้น (จ่ายอยู่) / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"DNA08C-03","สถานที่":"หน้าประปาดําเนินฯ","กฟฟ":"กฟส.ดําเนินสะดวก","คลัง":"โพธาราม","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PTR01C-03","สถานที่":"ข้างสําเพ็งโพธาราม","กฟฟ":"กฟส.โพธาราม","คลัง":"โพธาราม","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ลูกถ้วยเซนเซอร์ไม่มี / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"SSA07C-01","สถานที่":"คลองเขตเมือง","กฟฟ":"กฟจ.สมุทรสงคราม","คลัง":"สมุทรสงคราม","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"รอติดตั้งใหม่ ปลด drop ไม่ได้ใช้งาน / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"RNB07C-12","สถานที่":"ปากซอย15","กฟฟ":"กฟจ.ระนอง","คลัง":"ระนอง","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"รอติดตั งใหม่ / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"RNA05C-01","สถานที่":"อบต.กะเปอร์","กฟฟ":"กฟส.กะเปอร์","คลัง":"ระนอง","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ล่อฟ้าชํารุดเฟส A DROP VT ตกหมด , DROP แรงสูง เฟส A ตก ตู้ไหม้ชํารุด / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"ฺBSR07C-02","สถานที่":"บ้านฝั่งแดง","กฟฟ":"กฟส.บ้างสะพานน้อย","คลัง":"ประจวบคีรีขันธ์","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"CPA07C-04","สถานที่":"บ้านปากจั่น","กฟฟ":"กฟส.กระบุรี","คลัง":"ระนอง","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ไม่มีไฟ AC เข้าตู้ / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":true,"กลุ่มสถานะ":"ติดตั้งแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"CPA01C-02","สถานที่":"ใกล้ทุ่งคา","กฟฟ":"กฟจ.ชุมพร","คลัง":"ชุมพร","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"CPB09C-04","สถานที่":"อนุสาวรีย์ยุวชนทหาร","กฟฟ":"กฟจ.ชุมพร","คลัง":"ชุมพร","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"Drop vt ชํารุด สายใต้ตู้โดนตัดทั งหมด / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBA02C-03","สถานที่":"ppปาร์ค","กฟฟ":"กฟจ.เพชรบุรี","คลัง":"เพชรบุรี","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"ตู้กดไม่ได้ แข็ง / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PNA04C-02","สถานที่":"บ้านศาลาลัย","กฟฟ":"กฟส.ปราณบุรี","คลัง":"หัวหิน","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"รอรือ / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"KUA05C-03","สถานที่":"บ้านนาวัลเปรียง","กฟฟ":"กฟส.สามร้อยยอด","คลัง":"หัวหิน","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ลูกถ้วยเซนเซอร์ชํารุด / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBA09C-02","สถานที่":"โค้งท่าพุ่ง","กฟฟ":"กฟส.ท่ายาง","คลัง":"เพชรบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"Fuse ลูกคาปา 3 เส้น / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBA09C-04","สถานที่":"โรงสีเพชรบุรีไรส์มิลล์","กฟฟ":"กฟส.ท่ายาง","คลัง":"เพชรบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ไม่ได้ใช้งาน / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBA11C-05","สถานที่":"ริมคลองสาย 2","กฟฟ":"กฟส.ท่ายาง","คลัง":"เพชรบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ตู้หาย / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PBB04C-04","สถานที่":"บ้านหนองเตาปูน","กฟฟ":"กฟส.ท่ายาง","คลัง":"เพชรบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ตัวชํารุด / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"SSA10C-02","สถานที่":"ใกล้ปากทางเข้าโรงเรียนบ้านลาดใหญ่","กฟฟ":"กฟจ.สมุทรสงคราม","คลัง":"สมุทรสงคราม","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PTH08C-04","สถานที่":"หน้าวัดประชาฯ","กฟฟ":"กฟส.อัมพวา","คลัง":"สมุทรสงคราม","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":true,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"เบิกแล้ว"},{"ระดับแรงดัน":"","รหัสสั่งการ":"TSE02C-01","สถานที่":"ใกล้ธนาพันธ์น้ำมันปาล์ม","กฟฟ":"กฟส.ท่าแซะ","คลัง":"ชุมพร","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"หน้างานแจ้งยกเลิก / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"TSE04C-02","สถานที่":"ไทยประกันชีวิต","กฟฟ":"กฟส.ท่าแซะ","คลัง":"ชุมพร","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"หน้างานแจ้งยกเลิก / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"LSA07C-03","สถานที่":"บ้านเขาทะลุ","กฟฟ":"กฟส.ทุ่งตะโก","คลัง":"ชุมพร","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"Fuse ลูกคาปา เฟส B / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"LSA04C-04","สถานที่":"หน้า กฟฟ.ปากน้ำหลังสวน","กฟฟ":"กฟส.ปากน้ำหลังสวน","คลัง":"ชุมพร","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ตู้ไม่มี หม้อแปลงไม่มี ดรอปแรงสูงเฟส B หายทั งกระบอก อุปกรณ์ไม่ได้เชื'อมกับระบบแรงสูง / * CAP BANK สภาพเก่า","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"LSA09C-02","สถานที่":"ห้วยทรายขาว","กฟฟ":"กฟส.หลังสวน","คลัง":"ชุมพร","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"Drop เฟส C ชํารุด / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"LSA10C-07","สถานที่":"ป้อมตำรวจ","กฟฟ":"กฟส.หลังสวน","คลัง":"ชุมพร","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"Drop เฟส B ชํารุด / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"BSP07C-02","สถานที่":"โรงพยาบาลทับสะแก","กฟฟ":"กฟส.ทับสะแก","คลัง":"ประจวบคีรีขันธ์","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ใช้งานอยู่"},{"ระดับแรงดัน":"","รหัสสั่งการ":"CBN09C-03","สถานที่":"หนองนกกระเรียน","กฟฟ":"กฟส.จอมบึง","คลัง":"ราชบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"* CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ใช้งานอยู่"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PTH04C-04","สถานที่":"บ้านไพรน้อย","กฟฟ":"กฟส.ปากท่อ","คลัง":"ราชบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"Fuse ลูกคาปาตกเฟส C 1 (จ่ายอยู่) / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ใช้งานอยู่"},{"ระดับแรงดัน":"","รหัสสั่งการ":"RBB05C-03","สถานที่":"คูบัว","กฟฟ":"กฟส.เมืองราชบุรี","คลัง":"ราชบุรี","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"เสีย / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"PTH06C-03","สถานที่":"หน้าวัดคริสต์ ฯ","กฟฟ":"กฟส.วัดเพลง","คลัง":"ราชบุรี","Total_Kvar":1500.0,"จำนวน_Unit":15,"รายละเอียด":"ปลด drop ไม่ได้ใช้งาน / * CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":false,"ไม่ได้ใช้งาน":true,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ไม่ได้ใช้งาน"},{"ระดับแรงดัน":"","รหัสสั่งการ":"TSE09C-05","สถานที่":"หน้าอำเภอท่าแซะ-น้ำหัก","กฟฟ":"กฟส.ท่าแซะ","คลัง":"ชุมพร","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"บำรุงรักษา  CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ใช้งานอยู่"},{"ระดับแรงดัน":"","รหัสสั่งการ":"TSE10C-05","สถานที่":"บ้านห้วยหลุด ต.ทะเลทรัพย์ อ.ปะทิว","กฟฟ":"กฟส.ท่าแซะ","คลัง":"ชุมพร","Total_Kvar":1200.0,"จำนวน_Unit":12,"รายละเอียด":"บำรุงรักษา  CAP BANK สภาพเก่า ควรเปลี่ยน","ใช้งานอยู่":true,"ไม่ได้ใช้งาน":false,"เบิกแล้ว":false,"ติดตั้งแล้ว":false,"กลุ่มสถานะ":"ใช้งานอยู่"}]},"frtu":{"total":74,"by_gff":{"กฟจ.ชุมพร":3,"กฟจ.ระนอง":4,"กฟจ.ราชบุรี":4,"กฟจ.สมุทรสงคราม":5,"กฟส.แก่งกระจาน":1,"กฟส.เขาย้อย":2,"กฟส.ชะอำ":8,"กฟส.ดอนยาง":3,"กฟส.ทับสะแก":1,"กฟส.ท่าแซะ":2,"กฟส.ท่าไม้รวก":1,"กฟส.ทุ่งตะโก":3,"กฟส.บางคนที":1,"กฟส.บางแพ":1,"กฟส.บางสะพาน":1,"กฟส.บางสะพานน้อย":2,"กฟส.บ้านโป่ง":4,"กฟส.บ้านลาด":1,"กฟส.ปราณบุรี":1,"กฟส.ปะทิว":1,"กฟส.ปากท่อ":2,"กฟส.ปากน้ำหลังสวน":1,"กฟส.พะโต๊ะ":1,"กฟส.ละอุ่น":1,"กฟส.วัดเพลง":1,"กฟส.สวี":1,"กฟส.สุขสำราญ":3,"กฟส.หนองพลับ":3,"กฟส.หลังสวน":2,"กฟส.หัวหิน":9,"กฟส.อัมพวา":1},"gff_list":["กฟจ.ชุมพร","กฟจ.ระนอง","กฟจ.ราชบุรี","กฟจ.สมุทรสงคราม","กฟส.ชะอำ","กฟส.ดอนยาง","กฟส.ทับสะแก","กฟส.ทุ่งตะโก","กฟส.ท่าแซะ","กฟส.ท่าไม้รวก","กฟส.บางคนที","กฟส.บางสะพาน","กฟส.บางสะพานน้อย","กฟส.บางแพ","กฟส.บ้านลาด","กฟส.บ้านโป่ง","กฟส.ปราณบุรี","กฟส.ปะทิว","กฟส.ปากท่อ","กฟส.ปากน้ำหลังสวน","กฟส.พะโต๊ะ","กฟส.ละอุ่น","กฟส.วัดเพลง","กฟส.สวี","กฟส.สุขสำราญ","กฟส.หนองพลับ","กฟส.หลังสวน","กฟส.หัวหิน","กฟส.อัมพวา","กฟส.เขาย้อย","กฟส.แก่งกระจาน"],"table":[{"การไฟฟ้า":"กฟจ.ชุมพร","รหัสสั่งการ":"CPB07S-03","สถานที่":"สะพานท่ายาง","รายละเอียด":"บอร์ดพังรอใส่บอร์ด"},{"การไฟฟ้า":"กฟจ.ชุมพร","รหัสสั่งการ":"CPA10S-18","สถานที่":"อนามัยทุ่งคา","รายละเอียด":"รอเข้าระบบ scada"},{"การไฟฟ้า":"กฟจ.ชุมพร","รหัสสั่งการ":"CPB10S-25","สถานที่":"หน้าร้านวอทแซ่บ","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.ระนอง","รหัสสั่งการ":"RNB01S-12","สถานที่":"ทิพย์ยานยนต์","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.ระนอง","รหัสสั่งการ":"RNB03S-10","สถานที่":"ข้าง กศน.","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.ระนอง","รหัสสั่งการ":"RNB04S-04","สถานที่":"แขวงการทางบางนอน","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.ระนอง","รหัสสั่งการ":"RNB07S-10","สถานที่":"หน้าสนามกีฬา","รายละเอียด":"รอหน้างานจั๊มแรงต่ำ หรือ VT มาติด / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.ราชบุรี","รหัสสั่งการ":"RBA08S-09","สถานที่":"ห้าแยกสะพานแดง","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.ราชบุรี","รหัสสั่งการ":"RBB01S-08","สถานที่":"บายพาส บ้านดอนแจง","รายละเอียด":"รอหน้างานเสียบสาย VT"},{"การไฟฟ้า":"กฟจ.ราชบุรี","รหัสสั่งการ":"RBC04S-12","สถานที่":"โรงเจ","รายละเอียด":"หน้างานปรับปรุง"},{"การไฟฟ้า":"กฟจ.ราชบุรี","รหัสสั่งการ":"RBC05S-05","สถานที่":"ดอนตะโก-เมืองราชบุรี -ราชบุรี","รายละเอียด":"หน้างานปรับปรุง"},{"การไฟฟ้า":"กฟจ.สมุทรสงคราม","รหัสสั่งการ":"SSA10S-18","สถานที่":"แยกเข้าเมือง","รายละเอียด":"รอสับเปลี่ยน (ตัวพัง สถานะไม่ส่ง)"},{"การไฟฟ้า":"กฟจ.สมุทรสงคราม","รหัสสั่งการ":"SSA03S-17","สถานที่":"หน้าร้านนิวเปงล้ง ( ตรงข้ามธ.กรุงเทพ )","รายละเอียด":"รอหน้างานย้ายจุด / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.สมุทรสงคราม","รหัสสั่งการ":"PTH08S-04","สถานที่":"ปั๊มแก๊สโฉม","รายละเอียด":"รอหน้างานสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.สมุทรสงคราม","รหัสสั่งการ":"PTH05S-05","สถานที่":"เชิงสะพานคลองโคน ( ฝั่งคลองประชาชมชื่น )","รายละเอียด":"สายโดนตัดทุกเส้น / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟจ.สมุทรสงคราม","รหัสสั่งการ":"SSA07S-07","สถานที่":"ปากทางเข้าบ.โปรไบโอเทค","รายละเอียด":"VT เท่านั้น"},{"การไฟฟ้า":"กฟส.แก่งกระจาน","รหัสสั่งการ":"KDA02R-01","สถานที่":"สนามกอล์ฟ(แก่งกระจานคันทรีคลับ)","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.เขาย้อย","รหัสสั่งการ":"KHY01S-17","สถานที่":"หน้าโรงเรียนโยธินบูรณะ","รายละเอียด":"รอติด VT / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.เขาย้อย","รหัสสั่งการ":"KHZ01S-16","สถานที่":"หน้ากฟส.เขาย้อย","รายละเอียด":"LOW GAS / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAB01S-10","สถานที่":"เชิงเขาสปริงฟิลด์","รายละเอียด":"โดนตัด VT ระเบิด สายคอนโทรลต่อได้"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAA07S-06","สถานที่":"ปั๊มพีที เลยบริษัทปูน","รายละเอียด":"รอติด VT"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAB09S-12","สถานที่":"วงเวียนชะอำ","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAB09R-01","สถานที่":"หน้ารพ.ชะอำ","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAB06S-03","สถานที่":"ไทย เดนมาร์ก","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAB05S-08","สถานที่":"หน้าโรงแรมดุสิตธานี","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAB09S-05","สถานที่":"หน้าค่ายนเรศวร","รายละเอียด":"รอหน้างานจั๊มแรงต่ำ / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ชะอำ","รหัสสั่งการ":"CAA08S-08","สถานที่":"ห้วยจิก","รายละเอียด":"VT ระเบิด"},{"การไฟฟ้า":"กฟส.ดอนยาง","รหัสสั่งการ":"TSE02S-18","สถานที่":"หน้าโรงเรียนชุมชนมาปอำมฤต","รายละเอียด":"รอติดตั้งตู้คืน"},{"การไฟฟ้า":"กฟส.ดอนยาง","รหัสสั่งการ":"QTA02R-01","สถานที่":"บ้านหน้าค่าย","รายละเอียด":"รอเปลี่ยนตู้ Form6 / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ดอนยาง","รหัสสั่งการ":"TSE06R-01","สถานที่":"บ้านไชยราช","รายละเอียด":"รอสับเปลี่ยน REcloser ทั้งชุด"},{"การไฟฟ้า":"กฟส.ทับสะแก","รหัสสั่งการ":"BSP01S-12","สถานที่":"ตำรวจทางหลวง","รายละเอียด":"รอเสียบสายคอนโทรล"},{"การไฟฟ้า":"กฟส.ท่าแซะ","รหัสสั่งการ":"TSE07R-02","สถานที่":"บ้านช่องไทร","รายละเอียด":"ดำเนินการซ่อม Recloser ทั้งชุด / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ท่าแซะ","รหัสสั่งการ":"TSE09S-04","สถานที่":"ข้ามถนน AVR","รายละเอียด":"รอจั๊มแรงต่ำ"},{"การไฟฟ้า":"กฟส.ท่าไม้รวก","รหัสสั่งการ":"PBA10S-32","สถานที่":"แยกบ้านหนองชุมแสง","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ทุ่งตะโก","รหัสสั่งการ":"LSA01S-19","สถานที่":"จุดแบ่งเขตหลังสวน-สวี","รายละเอียด":"รอหน้างานจั๊ม VT , สายคอนโทรล PR61 / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ทุ่งตะโก","รหัสสั่งการ":"LSA07S-17","สถานที่":"โลตัส","รายละเอียด":"รอหน้างานเสียบสายคอนโทรล Pr.45"},{"การไฟฟ้า":"กฟส.ทุ่งตะโก","รหัสสั่งการ":"LSA01S-09","สถานที่":"หนองไม้แก่น","รายละเอียด":"รอหน้างานเอาตู้ใหม่ไปติด"},{"การไฟฟ้า":"กฟส.บางคนที","รหัสสั่งการ":"DNA05S-14","สถานที่":"บางยี่รงค์-บางคนที -สมุทรสงคราม","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.บางแพ","รหัสสั่งการ":"DNA06S-21","สถานที่":"ตรงข้ามคลังพัสดุ","รายละเอียด":"รอหน้างานจั๊มแรงต่ำ ตัว-ตู้ คนละรุ่น ขาด control"},{"การไฟฟ้า":"กฟส.บางสะพาน","รหัสสั่งการ":"BSP05R-01","สถานที่":"บ้านกรูด","รายละเอียด":"รอหน้างานสับเปลี่ยนRecloser"},{"การไฟฟ้า":"กฟส.บางสะพานน้อย","รหัสสั่งการ":"BSR02R-04","สถานที่":"บ้านห้วยสัก","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.บางสะพานน้อย","รหัสสั่งการ":"BSR02R-02","สถานที่":"บ้านหนองหัดไท","รายละเอียด":"รอหน้้างานสับเปลี่ยน Recloser"},{"การไฟฟ้า":"กฟส.บ้านโป่ง","รหัสสั่งการ":"BPB03S-06","สถานที่":"ตรงข้ามอนุชาแอร์","รายละเอียด":"ฟิวส์หม้อแปลงเฟส C ขาด"},{"การไฟฟ้า":"กฟส.บ้านโป่ง","รหัสสั่งการ":"BPB01S-03","สถานที่":"รัตนช่างยนต์","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.บ้านโป่ง","รหัสสั่งการ":"BPA01S-03","สถานที่":"โรงสี","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.บ้านโป่ง","รหัสสั่งการ":"NOM04S-03","สถานที่":"บ.ดาน่อน","รายละเอียด":"รอ Adapter GK56 / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.บ้านลาด","รหัสสั่งการ":"PBA10S-14","สถานที่":"จุดแบ่งเขต ท่ายาง-บ้านลาด","รายละเอียด":"ตัวพัง รอหน้างานสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ปราณบุรี","รหัสสั่งการ":"HUB02S-08","สถานที่":"บ้านทับใต้ (จุดแบ่งเขตหัวหิน-ปราณ)","รายละเอียด":"โดนขโมยตู้ / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ปะทิว","รหัสสั่งการ":"TSE10R-01","สถานที่":"บ้านดอนตะเคียน","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ปากท่อ","รหัสสั่งการ":"RBB08S-13","สถานที่":"โรงเจหนองไผ่","รายละเอียด":"ตัวรื้อถอน"},{"การไฟฟ้า":"กฟส.ปากท่อ","รหัสสั่งการ":"PTH01R-01","สถานที่":"บ้านหนองกระทุ่ม","รายละเอียด":"รอหน้างานติดตั้งให้ถูกพิกัด"},{"การไฟฟ้า":"กฟส.ปากน้ำหลังสวน","รหัสสั่งการ":"LSA06S-11","สถานที่":"แก็สสี่แยกบางน้ำจืด","รายละเอียด":"มอเตอร์ไหม้ PR.56 รอหน้างานยกตัวลงมาให้"},{"การไฟฟ้า":"กฟส.พะโต๊ะ","รหัสสั่งการ":"RNA04R-02","สถานที่":"หน้าไปรษณีย์","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.ละอุ่น","รหัสสั่งการ":"RNB04S-13","สถานที่":"สำนักสงฆ์ช่องเขา","รายละเอียด":"รอหน้างานจั๊มแรงต่ำ และ สาย control pr.49-56"},{"การไฟฟ้า":"กฟส.วัดเพลง","รหัสสั่งการ":"PTH07S-16","สถานที่":"สหกรณ์การเกษตรวัดเพลง","รายละเอียด":"ตัวรื้อถอนไป"},{"การไฟฟ้า":"กฟส.สวี","รหัสสั่งการ":"LSA02S-09","สถานที่":"หน้า สนง.ไฟฟ้าสวี(เก่า)","รายละเอียด":"รอเข้าระบบ scada"},{"การไฟฟ้า":"กฟส.สุขสำราญ","รหัสสั่งการ":"RNA05S-22","สถานที่":"ตรงข้ามโรงเรียนไทยรัฐวิทยา","รายละเอียด":"รอเข้าระบบ scada"},{"การไฟฟ้า":"กฟส.สุขสำราญ","รหัสสั่งการ":"RNA03S-25","สถานที่":"ไฟฟ้าสุขสำราญ","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.สุขสำราญ","รหัสสั่งการ":"RNA05S-24","สถานที่":"คลองบางกล้วย","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.หนองพลับ","รหัสสั่งการ":"CAB07S-11","สถานที่":"หินเหล็กไฟ-หัวหิน -ประจวบคีรีขันธ์","รายละเอียด":"รอยกตู้ คปศ มาใส่คืน / รอสับเปลี่ยนa"},{"การไฟฟ้า":"กฟส.หนองพลับ","รหัสสั่งการ":"HUB07S-04","สถานที่":"ป้อมตำรวจแยกบายพาส","รายละเอียด":"รอย้ายจุดA"},{"การไฟฟ้า":"กฟส.หนองพลับ","รหัสสั่งการ":"HUB01S-04","สถานที่":"บ้านหนองยายอ่วม","รายละเอียด":"สถานะไม่ส่ง / รอสับเปลี่ย"},{"การไฟฟ้า":"กฟส.หลังสวน","รหัสสั่งการ":"LSA07S-09","สถานที่":"วิทยาลัยเกษตร","รายละเอียด":"ปรับปรุงระบบจำหน่าย"},{"การไฟฟ้า":"กฟส.หลังสวน","รหัสสั่งการ":"LSA06S-04","สถานที่":"บ้านเขาน้ำทรัพย์","รายละเอียด":"รอยกตู้ คปศ มาใส่คืน"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUB08S-09","สถานที่":"วิวัฒน์คาแคร์","รายละเอียด":"ซ่อมเสร็จแล้วรอหน้างานติดตั้ง"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUC03S-17","สถานที่":"วัดเขาลั่นทม","รายละเอียด":"ตัว-ตู้ คนละรุ่น"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUB06S-10","สถานที่":"โรงเรียนหนองเหียน","รายละเอียด":"รอติด VT / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUB08S-06","สถานที่":"แหลมทอง","รายละเอียด":"รอย้ายจุด"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUB04S-10","สถานที่":"หอนาฬิกา วงจรล่าง","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUB03S-52","สถานที่":"ถนนชมสินธ์","รายละเอียด":"รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUB05S-11","สถานที่":"หัวหิน-หัวหิน -ประจวบคีรีขันธ์","รายละเอียด":"รอหน้างานยกตู้มาติด (ตัว-ตู้ คนละรุ่น) / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUC03S-12","สถานที่":"ประปาสวนสน","รายละเอียด":"รอ VT , control , สายอากาศ / รอสับเปลี่ยน"},{"การไฟฟ้า":"กฟส.หัวหิน","รหัสสั่งการ":"HUC04S-11","สถานที่":"ม.ราชมงคล","รายละเอียด":"VT พัง ไม่มีแรงต่ำ อาจจะย้ายจุด"},{"การไฟฟ้า":"กฟส.อัมพวา","รหัสสั่งการ":"DNA03S-07","สถานที่":"แยกอัมพวา","รายละเอียด":"รอสับเปลี่ยน"}]},"pm":{"total":2062,"by_province":{"กฟจ.ระนอง":159,"กฟจ.ชุมพร":412,"กฟจ.ประจวบคีรีขันธ์":462,"กฟจ.เพชรบุรี":348,"กฟจ.ราชบุรี":588,"กฟจ.สมุทรสงคราม":93},"table":[{"จังหวัด":"กฟจ.ระนอง","ย่อย":"กฟจ.ระนอง","Recloser":17,"SW_Capa":3,"LBS_115kV":0,"FRTU":75,"ATS":0,"รวม":95,"ช่วงวัน":"กุมภาพันธ์-มีนาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ระนอง","ย่อย":"กฟส.กระบุรี","Recloser":10,"SW_Capa":2,"LBS_115kV":0,"FRTU":6,"ATS":0,"รวม":18,"ช่วงวัน":"กุมภาพันธ์-มีนาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ระนอง","ย่อย":"กฟส.ละอุ่น","Recloser":7,"SW_Capa":0,"LBS_115kV":0,"FRTU":6,"ATS":0,"รวม":13,"ช่วงวัน":"กุมภาพันธ์-มีนาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ระนอง","ย่อย":"กฟส.กะเปอร์","Recloser":7,"SW_Capa":1,"LBS_115kV":0,"FRTU":10,"ATS":0,"รวม":18,"ช่วงวัน":"กุมภาพันธ์-มีนาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ระนอง","ย่อย":"กฟส.สุขสำราญ","Recloser":6,"SW_Capa":0,"LBS_115kV":0,"FRTU":9,"ATS":0,"รวม":15,"ช่วงวัน":"กุมภาพันธ์-มีนาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟจ.ชุมพร","Recloser":27,"SW_Capa":4,"LBS_115kV":1,"FRTU":71,"ATS":0,"รวม":103,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ปากน้ำชุมพร","Recloser":5,"SW_Capa":0,"LBS_115kV":0,"FRTU":15,"ATS":0,"รวม":20,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ท่าแซะ","Recloser":14,"SW_Capa":6,"LBS_115kV":0,"FRTU":41,"ATS":0,"รวม":61,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ปะทิว","Recloser":8,"SW_Capa":1,"LBS_115kV":0,"FRTU":12,"ATS":0,"รวม":21,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ดอนยาง","Recloser":9,"SW_Capa":2,"LBS_115kV":2,"FRTU":12,"ATS":0,"รวม":25,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.สวี","Recloser":16,"SW_Capa":0,"LBS_115kV":0,"FRTU":36,"ATS":0,"รวม":52,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":2},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.หลังสวน","Recloser":19,"SW_Capa":2,"LBS_115kV":0,"FRTU":46,"ATS":0,"รวม":67,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ละแม","Recloser":8,"SW_Capa":3,"LBS_115kV":0,"FRTU":14,"ATS":0,"รวม":25,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ปากน้ำหลังสวน","Recloser":3,"SW_Capa":2,"LBS_115kV":0,"FRTU":4,"ATS":0,"รวม":9,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.ทุ่งตะโก","Recloser":3,"SW_Capa":2,"LBS_115kV":0,"FRTU":11,"ATS":0,"รวม":16,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ชุมพร","ย่อย":"กฟส.พะโต๊ะ","Recloser":5,"SW_Capa":0,"LBS_115kV":0,"FRTU":8,"ATS":0,"รวม":13,"ช่วงวัน":"เมษายน-มิถุนายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.ทับสะแก","Recloser":14,"SW_Capa":1,"LBS_115kV":0,"FRTU":19,"ATS":0,"รวม":34,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.สามร้อยยอด","Recloser":7,"SW_Capa":1,"LBS_115kV":0,"FRTU":9,"ATS":0,"รวม":17,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.บางสะพาน","Recloser":15,"SW_Capa":1,"LBS_115kV":5,"FRTU":45,"ATS":0,"รวม":66,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.บางสะพานน้อย","Recloser":14,"SW_Capa":3,"LBS_115kV":0,"FRTU":26,"ATS":0,"รวม":43,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟจ.ประจวบคีรีขันธ์","Recloser":13,"SW_Capa":2,"LBS_115kV":0,"FRTU":30,"ATS":0,"รวม":45,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":2},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.นิคมสร้างตนเองอ่าวน้อย","Recloser":3,"SW_Capa":0,"LBS_115kV":0,"FRTU":6,"ATS":0,"รวม":9,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":2},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.ปราณบุรี","Recloser":11,"SW_Capa":3,"LBS_115kV":0,"FRTU":36,"ATS":0,"รวม":50,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":2},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.หัวหิน","Recloser":14,"SW_Capa":0,"LBS_115kV":1,"FRTU":108,"ATS":2,"รวม":125,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.หนองพลับ","Recloser":10,"SW_Capa":1,"LBS_115kV":1,"FRTU":18,"ATS":0,"รวม":30,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.ปากน้ำปราณบุรี","Recloser":0,"SW_Capa":0,"LBS_115kV":0,"FRTU":5,"ATS":0,"รวม":5,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ประจวบคีรีขันธ์","ย่อย":"กฟส.กุยบุรี","Recloser":8,"SW_Capa":0,"LBS_115kV":0,"FRTU":30,"ATS":0,"รวม":38,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":3},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.ท่ายาง","Recloser":6,"SW_Capa":4,"LBS_115kV":0,"FRTU":17,"ATS":0,"รวม":27,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.บ้านลาด","Recloser":4,"SW_Capa":3,"LBS_115kV":0,"FRTU":26,"ATS":0,"รวม":33,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.บ้านแหลม","Recloser":4,"SW_Capa":2,"LBS_115kV":0,"FRTU":17,"ATS":0,"รวม":23,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.บางตะบูน","Recloser":0,"SW_Capa":0,"LBS_115kV":0,"FRTU":0,"ATS":0,"รวม":0,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":0},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.แก่งกระจาน","Recloser":8,"SW_Capa":1,"LBS_115kV":0,"FRTU":17,"ATS":0,"รวม":26,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.ท่าไม้รวก","Recloser":2,"SW_Capa":0,"LBS_115kV":0,"FRTU":7,"ATS":1,"รวม":10,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":1},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟจ.เพชรบุรี","Recloser":17,"SW_Capa":3,"LBS_115kV":1,"FRTU":67,"ATS":0,"รวม":88,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":2},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.ชะอำ","Recloser":16,"SW_Capa":2,"LBS_115kV":0,"FRTU":68,"ATS":0,"รวม":86,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":2},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.เขาย้อย","Recloser":7,"SW_Capa":1,"LBS_115kV":3,"FRTU":31,"ATS":0,"รวม":42,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":2},{"จังหวัด":"กฟจ.เพชรบุรี","ย่อย":"กฟส.หนองหญ้าปล้อง","Recloser":3,"SW_Capa":0,"LBS_115kV":0,"FRTU":10,"ATS":0,"รวม":13,"ช่วงวัน":"กรกฎาคม-กันยายน","ชุดงาน":3},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟจ.ราชบุรี","Recloser":26,"SW_Capa":5,"LBS_115kV":3,"FRTU":84,"ATS":0,"รวม":118,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":1},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.จอมบึง","Recloser":13,"SW_Capa":4,"LBS_115kV":1,"FRTU":35,"ATS":0,"รวม":53,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":1},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.ด่านทับตะโก","Recloser":4,"SW_Capa":0,"LBS_115kV":0,"FRTU":8,"ATS":0,"รวม":12,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":1},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.สวนผึ้ง","Recloser":14,"SW_Capa":1,"LBS_115kV":0,"FRTU":31,"ATS":0,"รวม":46,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":1},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.บ้านคา","Recloser":5,"SW_Capa":1,"LBS_115kV":0,"FRTU":10,"ATS":0,"รวม":16,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":1},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.โพธาราม","Recloser":8,"SW_Capa":4,"LBS_115kV":3,"FRTU":64,"ATS":0,"รวม":79,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.ดอนไผ่","Recloser":5,"SW_Capa":2,"LBS_115kV":0,"FRTU":11,"ATS":0,"รวม":18,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.บางแพ","Recloser":6,"SW_Capa":3,"LBS_115kV":0,"FRTU":30,"ATS":0,"รวม":39,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.นางแก้ว","Recloser":7,"SW_Capa":2,"LBS_115kV":0,"FRTU":13,"ATS":0,"รวม":22,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":2},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.ปากท่อ","Recloser":13,"SW_Capa":5,"LBS_115kV":1,"FRTU":36,"ATS":0,"รวม":55,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.วัดเพลง","Recloser":1,"SW_Capa":1,"LBS_115kV":0,"FRTU":3,"ATS":0,"รวม":5,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.ดำเนินสะดวก","Recloser":12,"SW_Capa":3,"LBS_115kV":0,"FRTU":30,"ATS":0,"รวม":45,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.บ้านโป่ง","Recloser":9,"SW_Capa":1,"LBS_115kV":3,"FRTU":44,"ATS":0,"รวม":57,"ช่วงวัน":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.กรับใหญ่","Recloser":3,"SW_Capa":0,"LBS_115kV":0,"FRTU":6,"ATS":0,"รวม":9,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.ราชบุรี","ย่อย":"กฟส.หนองปลาหมอ","Recloser":4,"SW_Capa":0,"LBS_115kV":0,"FRTU":10,"ATS":0,"รวม":14,"ช่วงวัน":"กันยายน-ธันวาคม","ชุดงาน":3},{"จังหวัด":"กฟจ.สมุทรสงคราม","ย่อย":"กฟส.บางคนที","Recloser":2,"SW_Capa":1,"LBS_115kV":0,"FRTU":9,"ATS":0,"รวม":12,"ช่วงวัน":"มกราคม","ชุดงาน":2},{"จังหวัด":"กฟจ.สมุทรสงคราม","ย่อย":"กฟส.อัมพวา","Recloser":3,"SW_Capa":1,"LBS_115kV":0,"FRTU":15,"ATS":0,"รวม":19,"ช่วงวัน":"มกราคม","ชุดงาน":2},{"จังหวัด":"กฟจ.สมุทรสงคราม","ย่อย":"กฟจ.สมุทรสงคราม","Recloser":10,"SW_Capa":2,"LBS_115kV":0,"FRTU":50,"ATS":0,"รวม":62,"ช่วงวัน":"มกราคม","ชุดงาน":3}]}};
+const charts = {};
+let swapChartFilter = {status:'', budget:''};
+let frtuChartFilter = {gff:''};
+const panelTitles = {
+  swap:['ติดตามสับเปลี่ยน','รายการสับเปลี่ยนอุปกรณ์ทั้งหมด'],
+  ja:['งบ JA2900','ติดตามงบประมาณ JA2900'],
+  capa:['Capa Unit','ติดตามการติดตั้ง Capacitor Bank'],
+  frtu:['ติดตามแก้ไข FRTU','รายการ FRTU Down ที่ต้องแก้ไข'],
+  pm:['แผนบำรุงรักษา','แผนบำรุงรักษาอุปกรณ์ประจำปี 2569']
+};
+
+// ===== Sidebar =====
+function toggleSidebar(){
+  const s=document.getElementById('sidebar');
+  const m=document.getElementById('mainWrap');
+  const ov=document.getElementById('sidebarOverlay');
+  if(window.innerWidth<=768){
+    s.classList.toggle('open');
+    ov.style.display=s.classList.contains('open')?'block':'none';
+  } else {
+    s.classList.toggle('collapsed');
+    m.classList.toggle('expanded');
+  }
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').style.display='none';
+}
+function showPanel(id, el){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  const t=panelTitles[id]||[id,''];
+  document.getElementById('topbarTitle').textContent=t[0];
+  document.getElementById('topbarSub').textContent=t[1];
+  if(window.innerWidth<=768) closeSidebar();
+}
+
+// ===== Helpers =====
+function swapBadge(s){
+  if(s==='สับเปลี่ยนแล้ว') return '<span class="badge badge-green">'+s+'</span>';
+  if(s==='รอสับเปลี่ยน') return '<span class="badge badge-orange">'+s+'</span>';
+  return '<span class="badge badge-gray">'+s+'</span>';
+}
+function budgetBadge(s){
+  if(!s) return '<span class="badge badge-gray">-</span>';
+  if(s.includes('ได้รับงบ')) return '<span class="badge badge-green">'+s+'</span>';
+  if(s.includes('รอ')) return '<span class="badge badge-orange">'+s+'</span>';
+  return '<span class="badge badge-blue">'+s+'</span>';
+}
+function jaBadge(s){
+  if(!s) return '<span class="badge badge-gray">-</span>';
+  if(s.includes('ขึ้นทะเบียน')) return '<span class="badge badge-green">'+s+'</span>';
+  if(s.includes('ก่อสร้าง')) return '<span class="badge badge-orange">'+s+'</span>';
+  return '<span class="badge badge-blue">'+s+'</span>';
+}
+function capaBadge(s){
+  if(s==='ติดตั้งแล้ว') return '<span class="badge badge-green">'+s+'</span>';
+  if(s==='เบิกแล้ว') return '<span class="badge badge-blue">'+s+'</span>';
+  if(s==='ใช้งานอยู่') return '<span class="badge badge-teal">'+s+'</span>';
+  if(s==='ไม่ได้ใช้งาน') return '<span class="badge badge-red">'+s+'</span>';
+  return '<span class="badge badge-gray">'+s+'</span>';
+}
+function jabudBadge(s){
+  if(!s) return '<span class="badge badge-gray">-</span>';
+  if(s.includes('ได้รับ')) return '<span class="badge badge-green">'+s+'</span>';
+  if(s.includes('รอ')) return '<span class="badge badge-orange">'+s+'</span>';
+  return '<span class="badge badge-blue">'+s+'</span>';
+}
+function fmt(n){ return n===0?'0':n.toLocaleString('th-TH',{maximumFractionDigits:0}); }
+function populateSelect(selId, items, prefix){
+  const s=document.getElementById(selId);
+  items.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=prefix+': '+v; s.appendChild(o); });
+}
+function clearSelect(selId){
+  const s=document.getElementById(selId);
+  while(s.options.length>1) s.remove(1);
+}
+
+// ===== SWAP =====
+function initSwap(){
+  const d=DATA.swap;
+  document.getElementById('sw-total').textContent=fmt(d.total);
+  document.getElementById('sw-wait').textContent=fmt(d.waiting);
+  document.getElementById('sw-done').textContent=fmt(d.done);
+  document.getElementById('sw-rcs').textContent=fmt(d.by_type['RCS']||0);
+  document.getElementById('sw-rec').textContent=fmt(d.by_type['RECLOSER']||0);
+  clearSelect('swap-filter-gff'); clearSelect('swap-filter-province');
+  populateSelect('swap-filter-gff', d.gff_list, 'การไฟฟ้า');
+  populateSelect('swap-filter-province', Object.keys(d.by_province).sort(), 'จังหวัด');
+  buildSwapCharts(); buildSwapLeaderboard(); filterSwap();
+}
+function buildSwapCharts(){
+  const d=DATA.swap;
+  if(charts['swapStatus']) charts['swapStatus'].destroy();
+  if(charts['swapProvince']) charts['swapProvince'].destroy();
+  if(charts['swapBudget']) charts['swapBudget'].destroy();
+  const sCounts=d.status_counts;
+  charts['swapStatus']=new Chart(document.getElementById('swapStatusChart'),{
+    type:'doughnut',
+    data:{
+      labels:Object.keys(sCounts),
+      datasets:[{data:Object.values(sCounts),backgroundColor:Object.keys(sCounts).map(k=>k.includes('สับเปลี่ยนแล้ว')?'#22c55e':k.includes('รอ')?'#fbbf24':'#94a3b8'),borderWidth:2}]
+    },
+    options:{
+      plugins:{
+        legend:{
+          position:'bottom',
+          onClick:(e,item,legend)=>{
+            const label=legend.chart.data.labels[item.index];
+            if(swapChartFilter.status===label){swapChartFilter.status='';}
+            else{swapChartFilter.status=label;}
+            updateSwapChartFilter(); filterSwap();
+          }
+        }
+      },
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const label=charts['swapStatus'].data.labels[els[0].index];
+        if(swapChartFilter.status===label){swapChartFilter.status='';}
+        else{swapChartFilter.status=label;}
+        updateSwapChartFilter(); filterSwap();
+      }
+    }
+  });
+  const pKeys=Object.keys(d.by_province).sort((a,b)=>d.by_province[b]-d.by_province[a]);
+  charts['swapProvince']=new Chart(document.getElementById('swapProvinceChart'),{
+    type:'bar',
+    data:{labels:pKeys,datasets:[{label:'จำนวนอุปกรณ์',data:pKeys.map(k=>d.by_province[k]),backgroundColor:'#6851A3'}]},
+    options:{
+      scales:{y:{beginAtZero:true}},
+      plugins:{legend:{display:false}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const label=pKeys[els[0].index];
+        document.getElementById('swap-filter-province').value=label;
+        filterSwap();
+      }
+    }
+  });
+  const bKeys=Object.keys(d.budget_counts);
+  charts['swapBudget']=new Chart(document.getElementById('swapBudgetChart'),{
+    type:'doughnut',
+    data:{labels:bKeys,datasets:[{data:bKeys.map(k=>d.budget_counts[k]),backgroundColor:['#22c55e','#6851A3','#f59e0b','#ef4444','#8b5cf6','#94a3b8'],borderWidth:2}]},
+    options:{
+      plugins:{
+        legend:{
+          position:'bottom',
+          onClick:(e,item,legend)=>{
+            const label=legend.chart.data.labels[item.index];
+            if(swapChartFilter.budget===label){swapChartFilter.budget='';}
+            else{swapChartFilter.budget=label;}
+            updateSwapChartFilter(); filterSwap();
+          }
+        }
+      },
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const label=bKeys[els[0].index];
+        if(swapChartFilter.budget===label){swapChartFilter.budget='';}
+        else{swapChartFilter.budget=label;}
+        updateSwapChartFilter(); filterSwap();
+      }
+    }
+  });
+}
+function updateSwapChartFilter(){
+  const wrap=document.getElementById('swap-chart-filters');
+  let html='';
+  if(swapChartFilter.status) html+='<span class="chart-filter-badge"><b>สถานะ:</b>'+swapChartFilter.status+'<span class="badge-x" onclick="swapChartFilter.status=\'\';updateSwapChartFilter();filterSwap()">✕</span></span>';
+  if(swapChartFilter.budget) html+='<span class="chart-filter-badge"><b>งบ:</b>'+swapChartFilter.budget+'<span class="badge-x" onclick="swapChartFilter.budget=\'\';updateSwapChartFilter();filterSwap()">✕</span></span>';
+  wrap.innerHTML=html; wrap.style.display=html?'flex':'none';
+}
+function buildSwapLeaderboard(){
+  const d=DATA.swap;
+  const byProv={};
+  d.table.forEach(r=>{
+    const p=r.จังหวัด; if(!p)return;
+    if(!byProv[p])byProv[p]={total:0,done:0};
+    byProv[p].total++;
+    if(r.กลุ่มสถานะ==='สับเปลี่ยนแล้ว')byProv[p].done++;
+  });
+  const sorted=Object.entries(byProv).filter(([,v])=>v.total>0)
+    .sort((a,b)=>(b[1].done/b[1].total)-(a[1].done/a[1].total));
+  let html='';
+  sorted.forEach(([name,v],i)=>{
+    const rank=i+1; const pct=v.total?Math.round(v.done/v.total*100):0;
+    const rankCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-rest';
+    const rankTxt=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
+    const color=pct>=80?'#16a34a':pct>=50?'#f59e0b':'#ef4444';
+    html+='<div class="lb-row" onclick="filterByProvince(\''+name+'\')"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
+    html+='<div class="lb-body"><div class="lb-name">'+name+'</div>';
+    html+='<div class="lb-bar-bg"><div class="lb-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
+    html+='<div class="lb-meta"><span class="lb-count">'+v.done+'/'+v.total+'</span><span class="lb-pct" style="color:'+color+'">'+pct+'%</span></div>';
+    html+='</div></div>';
+  });
+  document.getElementById('swapLeaderboard').innerHTML=html;
+}
+function filterByProvince(p){
+  document.getElementById('swap-filter-province').value=p; filterSwap();
+  document.querySelectorAll('#swapLeaderboard .lb-row').forEach(el=>{
+    el.classList.toggle('active-filter',el.textContent.includes(p));
+  });
+}
+function filterSwap(){
+  const q=(document.getElementById('swap-search').value||'').toLowerCase();
+  const gff=document.getElementById('swap-filter-gff').value;
+  const type=document.getElementById('swap-filter-type').value;
+  const prov=document.getElementById('swap-filter-province').value;
+  const stat=document.getElementById('swap-filter-status').value;
+  let rows=DATA.swap.table.filter(r=>{
+    if(gff&&r.พื้นที่การไฟฟ้า!==gff)return false;
+    if(type&&r.TYPE!==type)return false;
+    if(prov&&r.จังหวัด!==prov)return false;
+    if(stat&&r.กลุ่มสถานะ!==stat)return false;
+    if(swapChartFilter.status&&r.กลุ่มสถานะ!==swapChartFilter.status)return false;
+    if(swapChartFilter.budget&&r.สถานะ!==swapChartFilter.budget)return false;
+    if(q){const s=(r.รหัสอุปกรณ์+' '+r.สถานที่ติดตั้ง+' '+r.พื้นที่การไฟฟ้า).toLowerCase();if(!s.includes(q))return false;}
+    return true;
+  });
+  let html=''; rows.forEach((r,i)=>{
+    html+='<tr><td>'+r.TYPE+'</td><td>'+r.รหัสอุปกรณ์+'</td><td>'+r.สถานที่ติดตั้ง+'</td>';
+    html+='<td>'+r.พื้นที่การไฟฟ้า+'</td><td>'+r.จังหวัด+'</td><td>'+r.ใช้งบ+'</td>';
+    html+='<td>'+budgetBadge(r.สถานะ)+'</td><td>'+(r.สถานะงาน||'-')+'</td>';
+    html+='<td class="editable-cell" onclick="editSwapStatus('+DATA.swap.table.indexOf(r)+',this)">'+swapBadge(r.กลุ่มสถานะ)+'</td></tr>';
+  });
+  document.getElementById('swapTableBody').innerHTML=html;
+  document.getElementById('swap-page-info').textContent='แสดง '+rows.length+' / '+DATA.swap.total+' รายการ';
+}
+function editSwapStatus(idx,td){
+  const cur=DATA.swap.table[idx].กลุ่มสถานะ;
+  const opts=['รอสับเปลี่ยน','สับเปลี่ยนแล้ว','อื่นๆ'];
+  td.innerHTML='<select class="inline-select" onchange="applySwapStatus('+idx+',this.value,this)" onclick="event.stopPropagation()" onblur="setTimeout(filterSwap,50)">'+opts.map(o=>'<option value="'+o+'"'+(o===cur?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+  td.querySelector('select').focus();
+}
+function applySwapStatus(idx,val,sel){
+  DATA.swap.table[idx].กลุ่มสถานะ=val;
+  const done=DATA.swap.table.filter(r=>r.กลุ่มสถานะ==='สับเปลี่ยนแล้ว').length;
+  const wait=DATA.swap.table.filter(r=>r.กลุ่มสถานะ==='รอสับเปลี่ยน').length;
+  DATA.swap.done=done; DATA.swap.waiting=wait;
+  DATA.swap.status_counts={'รอสับเปลี่ยน':wait,'สับเปลี่ยนแล้ว':done};
+  document.getElementById('sw-done').textContent=fmt(done);
+  document.getElementById('sw-wait').textContent=fmt(wait);
+  filterSwap(); buildSwapLeaderboard();
+}
+
+// ===== JA2900 =====
+function initJA(){
+  const d=DATA.ja2900;
+  document.getElementById('ja-total').textContent=fmt(d.total);
+  document.getElementById('ja-budget').textContent=fmt(Math.round(d.budget_total));
+  const construct=d.by_status['อยู่ระหว่างงานก่อสร้าง']||0;
+  document.getElementById('ja-construct').textContent=fmt(construct);
+  const reg=Object.entries(d.by_status).filter(([k])=>k.includes('ขึ้นทะเบียน')).reduce((s,[,v])=>s+v,0);
+  document.getElementById('ja-reg').textContent=fmt(reg);
+  clearSelect('ja-filter-gff'); clearSelect('ja-filter-status'); clearSelect('ja-filter-budget-status');
+  populateSelect('ja-filter-gff', d.gff_list, 'การไฟฟ้า');
+  const statuses=Object.keys(d.by_status).sort();
+  statuses.forEach(s=>{
+    const o=document.createElement('option'); o.value=s; o.textContent=s;
+    document.getElementById('ja-filter-status').appendChild(o);
+  });
+  const budStats=[...new Set(d.table.map(r=>r.สถานะงบประมาณ).filter(Boolean))].sort();
+  budStats.forEach(s=>{
+    const o=document.createElement('option'); o.value=s; o.textContent=s;
+    document.getElementById('ja-filter-budget-status').appendChild(o);
+  });
+  buildJACharts(); buildJAMultiLine(); buildJALeaderboard(); filterJa();
+}
+function buildJACharts(){
+  const d=DATA.ja2900;
+  if(charts['jaStatus']) charts['jaStatus'].destroy();
+  const sKeys=Object.keys(d.by_status);
+  charts['jaStatus']=new Chart(document.getElementById('jaStatusChart'),{
+    type:'doughnut',
+    data:{labels:sKeys,datasets:[{data:sKeys.map(k=>d.by_status[k]),backgroundColor:['#fbbf24','#22c55e','#6851A3','#8b5cf6','#ef4444','#94a3b8'],borderWidth:2}]},
+    options:{plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}
+  });
+}
+
+// ── JA Multi-Line: สถานะ × กฟฟ ───────────────────────────────────────────
+function buildJAMultiLine(){
+  const d = DATA.ja2900;
+
+  // ลำดับสถานะ F4 (ดีสุด) → A0 (แย่สุด)
+  const STATUS_CFG = [
+    {match:'ขึ้นทะเบียน', label:'F4 ขึ้นทะเบียนสินทรัพย์', color:'#22c55e', prio:1},
+    {match:'ตรวจสอบ',     label:'F3 ตรวจสอบบัญชี',          color:'#86efac', prio:2},
+    {match:'TECO',         label:'F2 TECO',                   color:'#facc15', prio:3},
+    {match:'ก่อสร้าง',    label:'F1 ระหว่างก่อสร้าง',         color:'#fb923c', prio:4},
+    {match:'WBS',          label:'A0 สร้าง WBS',               color:'#ef4444', prio:5},
+  ];
+  function getCfg(s){
+    if(!s) return {label:'ไม่ระบุ',color:'#94a3b8',prio:99};
+    for(const c of STATUS_CFG) if(s.includes(c.match)) return c;
+    return {label:s.length>18?s.slice(0,18)+'…':s, color:'#94a3b8', prio:99};
+  }
+
+  // รวม status keys → groups
+  const groups = {};
+  Object.keys(d.by_status).forEach(s=>{
+    const c = getCfg(s);
+    if(!groups[c.label]) groups[c.label]={...c, rawKeys:[]};
+    groups[c.label].rawKeys.push(s);
+  });
+  const sortedGroups = Object.values(groups).sort((a,b)=>a.prio-b.prio);
+  // stack: แย่/เทาล่าง → ดี/เขียวบน
+  const stackGroups  = [...sortedGroups].reverse();
+
+  // X-axis: กฟฟ ทั้งหมดเรียงชื่อ
+  const gffAll = [...new Set(d.table.map(r=>r['กฟฟ']).filter(Boolean))].sort();
+  const labels  = gffAll.map(g=>g.replace(/^กฟฟ\.?\s*/,'').replace(/การไฟฟ้า/g,'').trim());
+
+  // Dataset per status (stacked) — stackGroups: แย่ล่าง ดีบน
+  const datasets = stackGroups.map(grp=>{
+    const counts = gffAll.map(gff=>
+      d.table.filter(r=>r['กฟฟ']===gff && grp.rawKeys.some(k=>r['สถานะ']===k)).length
+    );
+    return {
+      label: grp.label,
+      data: counts,
+      backgroundColor: grp.color+'CC',
+      borderColor: grp.color,
+      borderWidth: 0.5,
+      borderRadius: 0,
+      borderSkipped: false,
+    };
+  });
+
+  // Status tag pills
+  const tagEl = document.getElementById('jaMLStatusTags');
+  if(tagEl){
+    tagEl.innerHTML = sortedGroups.map(g=>
+      `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;background:${g.color}22;border:1px solid ${g.color}55;color:${g.color};white-space:nowrap">
+        <span style="width:7px;height:7px;border-radius:2px;background:${g.color};display:inline-block"></span>${g.label}
+      </span>`
+    ).join('');
+  }
+
+  if(charts['jaMultiLine']) charts['jaMultiLine'].destroy();
+  charts['jaMultiLine'] = new Chart(document.getElementById('jaMultiLineChart'),{
+    type:'bar',
+    data:{labels, datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:true,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{
+          position:'bottom',
+          align:'center',
+          labels:{
+            color:'#94a3b8',
+            boxWidth:13,
+            boxHeight:13,
+            padding:14,
+            font:{size:11},
+          }
+        },
+        tooltip:{
+          backgroundColor:'rgba(13,10,30,0.95)',
+          borderColor:'rgba(255,255,255,0.1)',
+          borderWidth:1,
+          titleColor:'#e2e8f0',
+          titleFont:{size:12,weight:'bold'},
+          bodyColor:'#94a3b8',
+          bodyFont:{size:11},
+          padding:14,
+          boxPadding:5,
+          callbacks:{
+            title: items => '📍 ' + (gffAll[items[0].dataIndex] || items[0].label),
+            footer: items => {
+              const total = items.reduce((s,i)=>s+(i.parsed.y||0),0);
+              return 'รวมทั้งหมด: ' + total + ' รายการ';
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          stacked:true,
+          ticks:{color:'#94a3b8', maxRotation:45, font:{size:10.5}},
+          grid:{color:'rgba(255,255,255,0.04)', drawBorder:false},
+          border:{color:'rgba(255,255,255,0.1)'}
+        },
+        y:{
+          stacked:true,
+          beginAtZero:true,
+          ticks:{color:'#94a3b8', font:{size:10.5}},
+          grid:{color:'rgba(255,255,255,0.06)', drawBorder:false},
+          border:{color:'rgba(255,255,255,0.1)'},
+          title:{display:true, text:'จำนวนรายการ', color:'#64748b', font:{size:10}}
+        }
+      }
+    }
+  });
+}
+
+function buildJALeaderboard(){
+  const byGff={};
+  DATA.ja2900.table.forEach(r=>{
+    const g=r.กฟฟ; if(!g)return;
+    if(!byGff[g])byGff[g]={total:0,reg:0};
+    byGff[g].total++;
+    if(r.สถานะ&&r.สถานะ.includes('ขึ้นทะเบียน'))byGff[g].reg++;
+  });
+  const sorted=Object.entries(byGff).filter(([,v])=>v.total>0)
+    .sort((a,b)=>(b[1].reg/b[1].total)-(a[1].reg/a[1].total));
+  let html='';
+  sorted.forEach(([name,v],i)=>{
+    const rank=i+1; const pct=v.total?Math.round(v.reg/v.total*100):0;
+    const rankCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-rest';
+    const rankTxt=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
+    const color=pct>=80?'#16a34a':pct>=50?'#f59e0b':'#ef4444';
+    html+='<div class="lb-row"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
+    html+='<div class="lb-body"><div class="lb-name">'+name+'</div>';
+    html+='<div class="lb-bar-bg"><div class="lb-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
+    html+='<div class="lb-meta"><span class="lb-count">'+v.reg+'/'+v.total+'</span><span class="lb-pct" style="color:'+color+'">'+pct+'%</span></div>';
+    html+='</div></div>';
+  });
+  document.getElementById('jaLeaderboard').innerHTML=html;
+}
+function filterJa(){
+  const q=(document.getElementById('ja-search').value||'').toLowerCase();
+  const gff=document.getElementById('ja-filter-gff').value;
+  const dev=document.getElementById('ja-filter-device').value;
+  const stat=document.getElementById('ja-filter-status').value;
+  const bstat=document.getElementById('ja-filter-budget-status').value;
+  let rows=DATA.ja2900.table.filter(r=>{
+    if(gff&&r.กฟฟ!==gff)return false;
+    if(dev&&r.TYPE!==dev)return false;
+    if(stat&&r.สถานะ!==stat)return false;
+    if(bstat&&r.สถานะงบประมาณ!==bstat)return false;
+    if(q){const s=(r.รหัสอุปกรณ์+' '+r.สถานที่+' '+r.กฟฟ).toLowerCase();if(!s.includes(q))return false;}
+    return true;
+  });
+  let html=''; rows.forEach(r=>{
+    html+='<tr><td>'+r.กฟฟ+'</td><td>'+r.รหัสอุปกรณ์+'</td><td>'+r.สถานที่+'</td>';
+    html+='<td>'+r.TYPE+'</td><td>'+r.ใบสั่ง+'</td><td>'+jaBadge(r.สถานะ)+'</td>';
+    html+='<td>'+r.SAP+'</td><td style="text-align:right">'+(r.งบประมาณ?r.งบประมาณ.toLocaleString('th-TH',{maximumFractionDigits:2}):'-')+'</td>';
+    html+='<td class="editable-cell" onclick="editJaBudgetStatus('+DATA.ja2900.table.indexOf(r)+',this)">'+jabudBadge(r.สถานะงบประมาณ)+'</td></tr>';
+  });
+  document.getElementById('jaTableBody').innerHTML=html;
+  document.getElementById('ja-page-info').textContent='แสดง '+rows.length+' / '+DATA.ja2900.total+' รายการ';
+}
+function editJaBudgetStatus(idx,td){
+  const cur=DATA.ja2900.table[idx].สถานะงบประมาณ;
+  const opts=['ได้รับงบประมาณแล้ว','รออนุมัติงบประมาณ','ยังไม่ได้รับงบ'];
+  td.innerHTML='<select class="inline-select" onchange="applyJaBudget('+idx+',this.value)" onclick="event.stopPropagation()" onblur="setTimeout(filterJa,50)">'+opts.map(o=>'<option value="'+o+'"'+(o===cur?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+  td.querySelector('select').focus();
+}
+function applyJaBudget(idx,val){DATA.ja2900.table[idx].สถานะงบประมาณ=val;filterJa();}
+
+// ===== CAPA =====
+function initCapa(){
+  const d=DATA.capa;
+  document.getElementById('ca-total').textContent=fmt(d.total);
+  document.getElementById('ca-installed').textContent=fmt(d.installed);
+  document.getElementById('ca-issued').textContent=fmt(d.issued);
+  document.getElementById('ca-inuse').textContent=fmt(d.in_use);
+  document.getElementById('ca-kvar').textContent=fmt(Math.round(d.total_kvar));
+  clearSelect('capa-filter-gff');
+  populateSelect('capa-filter-gff', d.gff_list, 'การไฟฟ้า');
+  buildCapaCharts(); buildCapaLeaderboard(); filterCapa();
+}
+function buildCapaCharts(){
+  const d=DATA.capa;
+  if(charts['capaStatus']) charts['capaStatus'].destroy();
+  if(charts['capaProvince']) charts['capaProvince'].destroy();
+  const sKeys=Object.keys(d.status_counts);
+  charts['capaStatus']=new Chart(document.getElementById('capaStatusChart'),{
+    type:'doughnut',
+    data:{labels:sKeys,datasets:[{data:sKeys.map(k=>d.status_counts[k]),backgroundColor:['#22c55e','#6851A3','#0d9488','#ef4444','#94a3b8'],borderWidth:2}]},
+    options:{plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}
+  });
+  const pKeys=Object.keys(d.by_province).sort((a,b)=>d.by_province[b]-d.by_province[a]);
+  charts['capaProvince']=new Chart(document.getElementById('capaProvinceChart'),{
+    type:'bar',
+    data:{labels:pKeys,datasets:[{label:'จำนวน',data:pKeys.map(k=>d.by_province[k]),backgroundColor:'#34d399',borderRadius:5}]},
+    options:{scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}}},plugins:{legend:{display:false}}}
+  });
+}
+function buildCapaLeaderboard(){
+  const byGff={};
+  DATA.capa.table.forEach(r=>{
+    const g=r.กฟฟ; if(!g)return;
+    if(!byGff[g])byGff[g]={total:0,done:0};
+    byGff[g].total++;
+    if(r.กลุ่มสถานะ==='ติดตั้งแล้ว')byGff[g].done++;
+  });
+  const sorted=Object.entries(byGff).filter(([,v])=>v.total>0)
+    .sort((a,b)=>(b[1].done/b[1].total)-(a[1].done/a[1].total));
+  let html='';
+  sorted.forEach(([name,v],i)=>{
+    const rank=i+1; const pct=v.total?Math.round(v.done/v.total*100):0;
+    const rankCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-rest';
+    const rankTxt=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
+    const color=pct>=80?'#16a34a':pct>=50?'#f59e0b':'#ef4444';
+    html+='<div class="lb-row"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
+    html+='<div class="lb-body"><div class="lb-name">'+name+'</div>';
+    html+='<div class="lb-bar-bg"><div class="lb-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
+    html+='<div class="lb-meta"><span class="lb-count">'+v.done+'/'+v.total+'</span><span class="lb-pct" style="color:'+color+'">'+pct+'%</span></div>';
+    html+='</div></div>';
+  });
+  document.getElementById('capaLeaderboard').innerHTML=html;
+}
+function filterCapa(){
+  const q=(document.getElementById('capa-search').value||'').toLowerCase();
+  const gff=document.getElementById('capa-filter-gff').value;
+  const stat=document.getElementById('capa-filter-status').value;
+  let rows=DATA.capa.table.filter(r=>{
+    if(gff&&r.กฟฟ!==gff)return false;
+    if(stat&&r.กลุ่มสถานะ!==stat)return false;
+    if(q){const s=(r.รหัสสั่งการ+' '+r.สถานที่+' '+r.กฟฟ).toLowerCase();if(!s.includes(q))return false;}
+    return true;
+  });
+  let html=''; rows.forEach(r=>{
+    html+='<tr><td>'+r.ระดับแรงดัน+'</td><td>'+r.รหัสสั่งการ+'</td><td>'+r.สถานที่+'</td>';
+    html+='<td>'+r.กฟฟ+'</td><td>'+r.คลัง+'</td><td>'+fmt(r.Total_Kvar)+'</td><td>'+fmt(r.จำนวน_Unit)+'</td>';
+    html+='<td>'+r.รายละเอียด+'</td>';
+    html+='<td class="editable-cell" onclick="editCapaStatus('+DATA.capa.table.indexOf(r)+',this)">'+capaBadge(r.กลุ่มสถานะ)+'</td></tr>';
+  });
+  document.getElementById('capaTableBody').innerHTML=html;
+  document.getElementById('capa-page-info').textContent='แสดง '+rows.length+' / '+DATA.capa.total+' รายการ';
+}
+function editCapaStatus(idx,td){
+  const cur=DATA.capa.table[idx].กลุ่มสถานะ;
+  const opts=['ติดตั้งแล้ว','เบิกแล้ว','ใช้งานอยู่','ไม่ได้ใช้งาน','ไม่ระบุ'];
+  td.innerHTML='<select class="inline-select" onchange="applyCapaStatus('+idx+',this.value)" onclick="event.stopPropagation()" onblur="setTimeout(filterCapa,50)">'+opts.map(o=>'<option value="'+o+'"'+(o===cur?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+  td.querySelector('select').focus();
+}
+function applyCapaStatus(idx,val){DATA.capa.table[idx].กลุ่มสถานะ=val;filterCapa();}
+
+// ===== FRTU =====
+function initFRTU(){
+  const d=DATA.frtu;
+  document.getElementById('fr-total').textContent=fmt(d.total);
+  document.getElementById('fr-areas').textContent=fmt(d.gff_list.length);
+  clearSelect('frtu-filter-gff');
+  populateSelect('frtu-filter-gff', d.gff_list, 'การไฟฟ้า');
+  buildFrtuChart(); filterFrtu();
+}
+function buildFrtuChart(){
+  const d=DATA.frtu;
+  if(charts['frtuBar']) charts['frtuBar'].destroy();
+  const keys=Object.keys(d.by_gff).sort((a,b)=>d.by_gff[b]-d.by_gff[a]);
+  charts['frtuBar']=new Chart(document.getElementById('frtuBarChart'),{
+    type:'bar',
+    data:{labels:keys,datasets:[{label:'จำนวน FRTU Down',data:keys.map(k=>d.by_gff[k]),backgroundColor:'#f87171',borderRadius:5}]},
+    options:{
+      scales:{y:{beginAtZero:true}},
+      plugins:{legend:{display:false}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const label=keys[els[0].index];
+        document.getElementById('frtu-filter-gff').value=label;
+        filterFrtu();
+      }
+    }
+  });
+}
+function filterFrtu(){
+  const q=(document.getElementById('frtu-search').value||'').toLowerCase();
+  const gff=document.getElementById('frtu-filter-gff').value;
+  let rows=DATA.frtu.table.filter(r=>{
+    if(gff&&r.การไฟฟ้า!==gff)return false;
+    if(q){const s=(r.รหัสสั่งการ+' '+r.สถานที่+' '+r.การไฟฟ้า).toLowerCase();if(!s.includes(q))return false;}
+    return true;
+  });
+  let html=''; rows.forEach((r,i)=>{
+    html+='<tr><td>'+(i+1)+'</td><td>'+r.การไฟฟ้า+'</td><td>'+r.รหัสสั่งการ+'</td>';
+    html+='<td>'+r.สถานที่+'</td><td>'+r.รายละเอียด+'</td></tr>';
+  });
+  document.getElementById('frtuTableBody').innerHTML=html;
+  document.getElementById('frtu-page-info').textContent='แสดง '+rows.length+' / '+DATA.frtu.total+' รายการ';
+}
+
+
+// ========== PM Timeline ==========
+const PM_D = {"gantt":[{"province":"กฟจ.ระนอง","months":[2,3],"segments":[[2,3]],"color":{"bg":"#bae6fd","border":"#0ea5e9","text":"#0369a1","dark":"#0284c7"},"total":159},{"province":"กฟจ.ชุมพร","months":[4,5,6],"segments":[[4,6]],"color":{"bg":"#bbf7d0","border":"#22c55e","text":"#166534","dark":"#16a34a"},"total":412},{"province":"กฟจ.ประจวบคีรีขันธ์","months":[7,8,9],"segments":[[7,9]],"color":{"bg":"#fde68a","border":"#f59e0b","text":"#92400e","dark":"#d97706"},"total":462},{"province":"กฟจ.เพชรบุรี","months":[7,8,9],"segments":[[7,9]],"color":{"bg":"#e9d5ff","border":"#8b5cf6","text":"#5b21b6","dark":"#7c3aed"},"total":348},{"province":"กฟจ.ราชบุรี","months":[1,2,9,10,11,12],"segments":[[1,2],[9,12]],"color":{"bg":"#fecaca","border":"#ef4444","text":"#991b1b","dark":"#dc2626"},"total":588},{"province":"กฟจ.สมุทรสงคราม","months":[1],"segments":[[1,1]],"color":{"bg":"#99f6e4","border":"#14b8a6","text":"#134e4a","dark":"#0d9488"},"total":93}],"month_data":{"1":{"กฟจ.ราชบุรี":[{"name":"กฟส.บ้านโป่ง","recloser":9,"frtu":44,"capa":1,"lbs":3,"ats":0,"total":57,"period":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","team":3}],"กฟจ.สมุทรสงคราม":[{"name":"กฟส.บางคนที","recloser":2,"frtu":9,"capa":1,"lbs":0,"ats":0,"total":12,"period":"มกราคม","team":2},{"name":"กฟส.อัมพวา","recloser":3,"frtu":15,"capa":1,"lbs":0,"ats":0,"total":19,"period":"มกราคม","team":2},{"name":"กฟจ.สมุทรสงคราม","recloser":10,"frtu":50,"capa":2,"lbs":0,"ats":0,"total":62,"period":"มกราคม","team":3}]},"2":{"กฟจ.ระนอง":[{"name":"กฟจ.ระนอง","recloser":17,"frtu":75,"capa":3,"lbs":0,"ats":0,"total":95,"period":"กุมภาพันธ์-มีนาคม","team":2},{"name":"กฟส.กระบุรี","recloser":10,"frtu":6,"capa":2,"lbs":0,"ats":0,"total":18,"period":"กุมภาพันธ์-มีนาคม","team":2},{"name":"กฟส.ละอุ่น","recloser":7,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":13,"period":"กุมภาพันธ์-มีนาคม","team":2},{"name":"กฟส.กะเปอร์","recloser":7,"frtu":10,"capa":1,"lbs":0,"ats":0,"total":18,"period":"กุมภาพันธ์-มีนาคม","team":3},{"name":"กฟส.สุขสำราญ","recloser":6,"frtu":9,"capa":0,"lbs":0,"ats":0,"total":15,"period":"กุมภาพันธ์-มีนาคม","team":3}],"กฟจ.ราชบุรี":[{"name":"กฟส.บ้านโป่ง","recloser":9,"frtu":44,"capa":1,"lbs":3,"ats":0,"total":57,"period":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","team":3}]},"3":{"กฟจ.ระนอง":[{"name":"กฟจ.ระนอง","recloser":17,"frtu":75,"capa":3,"lbs":0,"ats":0,"total":95,"period":"กุมภาพันธ์-มีนาคม","team":2},{"name":"กฟส.กระบุรี","recloser":10,"frtu":6,"capa":2,"lbs":0,"ats":0,"total":18,"period":"กุมภาพันธ์-มีนาคม","team":2},{"name":"กฟส.ละอุ่น","recloser":7,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":13,"period":"กุมภาพันธ์-มีนาคม","team":2},{"name":"กฟส.กะเปอร์","recloser":7,"frtu":10,"capa":1,"lbs":0,"ats":0,"total":18,"period":"กุมภาพันธ์-มีนาคม","team":3},{"name":"กฟส.สุขสำราญ","recloser":6,"frtu":9,"capa":0,"lbs":0,"ats":0,"total":15,"period":"กุมภาพันธ์-มีนาคม","team":3}]},"4":{"กฟจ.ชุมพร":[{"name":"กฟจ.ชุมพร","recloser":27,"frtu":71,"capa":4,"lbs":1,"ats":0,"total":103,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ปากน้ำชุมพร","recloser":5,"frtu":15,"capa":0,"lbs":0,"ats":0,"total":20,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ท่าแซะ","recloser":14,"frtu":41,"capa":6,"lbs":0,"ats":0,"total":61,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ปะทิว","recloser":8,"frtu":12,"capa":1,"lbs":0,"ats":0,"total":21,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ดอนยาง","recloser":9,"frtu":12,"capa":2,"lbs":2,"ats":0,"total":25,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.สวี","recloser":16,"frtu":36,"capa":0,"lbs":0,"ats":0,"total":52,"period":"เมษายน-มิถุนายน","team":2},{"name":"กฟส.หลังสวน","recloser":19,"frtu":46,"capa":2,"lbs":0,"ats":0,"total":67,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ละแม","recloser":8,"frtu":14,"capa":3,"lbs":0,"ats":0,"total":25,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ปากน้ำหลังสวน","recloser":3,"frtu":4,"capa":2,"lbs":0,"ats":0,"total":9,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ทุ่งตะโก","recloser":3,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":16,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.พะโต๊ะ","recloser":5,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":13,"period":"เมษายน-มิถุนายน","team":3}]},"5":{"กฟจ.ชุมพร":[{"name":"กฟจ.ชุมพร","recloser":27,"frtu":71,"capa":4,"lbs":1,"ats":0,"total":103,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ปากน้ำชุมพร","recloser":5,"frtu":15,"capa":0,"lbs":0,"ats":0,"total":20,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ท่าแซะ","recloser":14,"frtu":41,"capa":6,"lbs":0,"ats":0,"total":61,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ปะทิว","recloser":8,"frtu":12,"capa":1,"lbs":0,"ats":0,"total":21,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ดอนยาง","recloser":9,"frtu":12,"capa":2,"lbs":2,"ats":0,"total":25,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.สวี","recloser":16,"frtu":36,"capa":0,"lbs":0,"ats":0,"total":52,"period":"เมษายน-มิถุนายน","team":2},{"name":"กฟส.หลังสวน","recloser":19,"frtu":46,"capa":2,"lbs":0,"ats":0,"total":67,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ละแม","recloser":8,"frtu":14,"capa":3,"lbs":0,"ats":0,"total":25,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ปากน้ำหลังสวน","recloser":3,"frtu":4,"capa":2,"lbs":0,"ats":0,"total":9,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ทุ่งตะโก","recloser":3,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":16,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.พะโต๊ะ","recloser":5,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":13,"period":"เมษายน-มิถุนายน","team":3}]},"6":{"กฟจ.ชุมพร":[{"name":"กฟจ.ชุมพร","recloser":27,"frtu":71,"capa":4,"lbs":1,"ats":0,"total":103,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ปากน้ำชุมพร","recloser":5,"frtu":15,"capa":0,"lbs":0,"ats":0,"total":20,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ท่าแซะ","recloser":14,"frtu":41,"capa":6,"lbs":0,"ats":0,"total":61,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ปะทิว","recloser":8,"frtu":12,"capa":1,"lbs":0,"ats":0,"total":21,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.ดอนยาง","recloser":9,"frtu":12,"capa":2,"lbs":2,"ats":0,"total":25,"period":"เมษายน-มิถุนายน","team":1},{"name":"กฟส.สวี","recloser":16,"frtu":36,"capa":0,"lbs":0,"ats":0,"total":52,"period":"เมษายน-มิถุนายน","team":2},{"name":"กฟส.หลังสวน","recloser":19,"frtu":46,"capa":2,"lbs":0,"ats":0,"total":67,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ละแม","recloser":8,"frtu":14,"capa":3,"lbs":0,"ats":0,"total":25,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ปากน้ำหลังสวน","recloser":3,"frtu":4,"capa":2,"lbs":0,"ats":0,"total":9,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.ทุ่งตะโก","recloser":3,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":16,"period":"เมษายน-มิถุนายน","team":3},{"name":"กฟส.พะโต๊ะ","recloser":5,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":13,"period":"เมษายน-มิถุนายน","team":3}]},"7":{"กฟจ.ประจวบคีรีขันธ์":[{"name":"กฟส.ทับสะแก","recloser":14,"frtu":19,"capa":1,"lbs":0,"ats":0,"total":34,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.สามร้อยยอด","recloser":7,"frtu":9,"capa":1,"lbs":0,"ats":0,"total":17,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางสะพาน","recloser":15,"frtu":45,"capa":1,"lbs":5,"ats":0,"total":66,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางสะพานน้อย","recloser":14,"frtu":26,"capa":3,"lbs":0,"ats":0,"total":43,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟจ.ประจวบคีรีขันธ์","recloser":13,"frtu":30,"capa":2,"lbs":0,"ats":0,"total":45,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.นิคมสร้างตนเองอ่าวน้อย","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.ปราณบุรี","recloser":11,"frtu":36,"capa":3,"lbs":0,"ats":0,"total":50,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.หัวหิน","recloser":14,"frtu":108,"capa":0,"lbs":1,"ats":2,"total":125,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.หนองพลับ","recloser":10,"frtu":18,"capa":1,"lbs":1,"ats":0,"total":30,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.ปากน้ำปราณบุรี","recloser":0,"frtu":5,"capa":0,"lbs":0,"ats":0,"total":5,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.กุยบุรี","recloser":8,"frtu":30,"capa":0,"lbs":0,"ats":0,"total":38,"period":"กรกฎาคม-กันยายน","team":3}],"กฟจ.เพชรบุรี":[{"name":"กฟส.ท่ายาง","recloser":6,"frtu":17,"capa":4,"lbs":0,"ats":0,"total":27,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บ้านลาด","recloser":4,"frtu":26,"capa":3,"lbs":0,"ats":0,"total":33,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บ้านแหลม","recloser":4,"frtu":17,"capa":2,"lbs":0,"ats":0,"total":23,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางตะบูน","recloser":0,"frtu":0,"capa":0,"lbs":0,"ats":0,"total":0,"period":"กรกฎาคม-กันยายน","team":0},{"name":"กฟส.แก่งกระจาน","recloser":8,"frtu":17,"capa":1,"lbs":0,"ats":0,"total":26,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.ท่าไม้รวก","recloser":2,"frtu":7,"capa":0,"lbs":0,"ats":1,"total":10,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟจ.เพชรบุรี","recloser":17,"frtu":67,"capa":3,"lbs":1,"ats":0,"total":88,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.ชะอำ","recloser":16,"frtu":68,"capa":2,"lbs":0,"ats":0,"total":86,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.เขาย้อย","recloser":7,"frtu":31,"capa":1,"lbs":3,"ats":0,"total":42,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.หนองหญ้าปล้อง","recloser":3,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":13,"period":"กรกฎาคม-กันยายน","team":3}]},"8":{"กฟจ.ประจวบคีรีขันธ์":[{"name":"กฟส.ทับสะแก","recloser":14,"frtu":19,"capa":1,"lbs":0,"ats":0,"total":34,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.สามร้อยยอด","recloser":7,"frtu":9,"capa":1,"lbs":0,"ats":0,"total":17,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางสะพาน","recloser":15,"frtu":45,"capa":1,"lbs":5,"ats":0,"total":66,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางสะพานน้อย","recloser":14,"frtu":26,"capa":3,"lbs":0,"ats":0,"total":43,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟจ.ประจวบคีรีขันธ์","recloser":13,"frtu":30,"capa":2,"lbs":0,"ats":0,"total":45,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.นิคมสร้างตนเองอ่าวน้อย","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.ปราณบุรี","recloser":11,"frtu":36,"capa":3,"lbs":0,"ats":0,"total":50,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.หัวหิน","recloser":14,"frtu":108,"capa":0,"lbs":1,"ats":2,"total":125,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.หนองพลับ","recloser":10,"frtu":18,"capa":1,"lbs":1,"ats":0,"total":30,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.ปากน้ำปราณบุรี","recloser":0,"frtu":5,"capa":0,"lbs":0,"ats":0,"total":5,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.กุยบุรี","recloser":8,"frtu":30,"capa":0,"lbs":0,"ats":0,"total":38,"period":"กรกฎาคม-กันยายน","team":3}],"กฟจ.เพชรบุรี":[{"name":"กฟส.ท่ายาง","recloser":6,"frtu":17,"capa":4,"lbs":0,"ats":0,"total":27,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บ้านลาด","recloser":4,"frtu":26,"capa":3,"lbs":0,"ats":0,"total":33,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บ้านแหลม","recloser":4,"frtu":17,"capa":2,"lbs":0,"ats":0,"total":23,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางตะบูน","recloser":0,"frtu":0,"capa":0,"lbs":0,"ats":0,"total":0,"period":"กรกฎาคม-กันยายน","team":0},{"name":"กฟส.แก่งกระจาน","recloser":8,"frtu":17,"capa":1,"lbs":0,"ats":0,"total":26,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.ท่าไม้รวก","recloser":2,"frtu":7,"capa":0,"lbs":0,"ats":1,"total":10,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟจ.เพชรบุรี","recloser":17,"frtu":67,"capa":3,"lbs":1,"ats":0,"total":88,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.ชะอำ","recloser":16,"frtu":68,"capa":2,"lbs":0,"ats":0,"total":86,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.เขาย้อย","recloser":7,"frtu":31,"capa":1,"lbs":3,"ats":0,"total":42,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.หนองหญ้าปล้อง","recloser":3,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":13,"period":"กรกฎาคม-กันยายน","team":3}]},"9":{"กฟจ.ประจวบคีรีขันธ์":[{"name":"กฟส.ทับสะแก","recloser":14,"frtu":19,"capa":1,"lbs":0,"ats":0,"total":34,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.สามร้อยยอด","recloser":7,"frtu":9,"capa":1,"lbs":0,"ats":0,"total":17,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางสะพาน","recloser":15,"frtu":45,"capa":1,"lbs":5,"ats":0,"total":66,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางสะพานน้อย","recloser":14,"frtu":26,"capa":3,"lbs":0,"ats":0,"total":43,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟจ.ประจวบคีรีขันธ์","recloser":13,"frtu":30,"capa":2,"lbs":0,"ats":0,"total":45,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.นิคมสร้างตนเองอ่าวน้อย","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.ปราณบุรี","recloser":11,"frtu":36,"capa":3,"lbs":0,"ats":0,"total":50,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.หัวหิน","recloser":14,"frtu":108,"capa":0,"lbs":1,"ats":2,"total":125,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.หนองพลับ","recloser":10,"frtu":18,"capa":1,"lbs":1,"ats":0,"total":30,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.ปากน้ำปราณบุรี","recloser":0,"frtu":5,"capa":0,"lbs":0,"ats":0,"total":5,"period":"กรกฎาคม-กันยายน","team":3},{"name":"กฟส.กุยบุรี","recloser":8,"frtu":30,"capa":0,"lbs":0,"ats":0,"total":38,"period":"กรกฎาคม-กันยายน","team":3}],"กฟจ.เพชรบุรี":[{"name":"กฟส.ท่ายาง","recloser":6,"frtu":17,"capa":4,"lbs":0,"ats":0,"total":27,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บ้านลาด","recloser":4,"frtu":26,"capa":3,"lbs":0,"ats":0,"total":33,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บ้านแหลม","recloser":4,"frtu":17,"capa":2,"lbs":0,"ats":0,"total":23,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.บางตะบูน","recloser":0,"frtu":0,"capa":0,"lbs":0,"ats":0,"total":0,"period":"กรกฎาคม-กันยายน","team":0},{"name":"กฟส.แก่งกระจาน","recloser":8,"frtu":17,"capa":1,"lbs":0,"ats":0,"total":26,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟส.ท่าไม้รวก","recloser":2,"frtu":7,"capa":0,"lbs":0,"ats":1,"total":10,"period":"กรกฎาคม-กันยายน","team":1},{"name":"กฟจ.เพชรบุรี","recloser":17,"frtu":67,"capa":3,"lbs":1,"ats":0,"total":88,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.ชะอำ","recloser":16,"frtu":68,"capa":2,"lbs":0,"ats":0,"total":86,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.เขาย้อย","recloser":7,"frtu":31,"capa":1,"lbs":3,"ats":0,"total":42,"period":"กรกฎาคม-กันยายน","team":2},{"name":"กฟส.หนองหญ้าปล้อง","recloser":3,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":13,"period":"กรกฎาคม-กันยายน","team":3}],"กฟจ.ราชบุรี":[{"name":"กฟจ.ราชบุรี","recloser":26,"frtu":84,"capa":5,"lbs":3,"ats":0,"total":118,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.จอมบึง","recloser":13,"frtu":35,"capa":4,"lbs":1,"ats":0,"total":53,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.ด่านทับตะโก","recloser":4,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":12,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.สวนผึ้ง","recloser":14,"frtu":31,"capa":1,"lbs":0,"ats":0,"total":46,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.บ้านคา","recloser":5,"frtu":10,"capa":1,"lbs":0,"ats":0,"total":16,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.โพธาราม","recloser":8,"frtu":64,"capa":4,"lbs":3,"ats":0,"total":79,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ดอนไผ่","recloser":5,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":18,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.บางแพ","recloser":6,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":39,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.นางแก้ว","recloser":7,"frtu":13,"capa":2,"lbs":0,"ats":0,"total":22,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ปากท่อ","recloser":13,"frtu":36,"capa":5,"lbs":1,"ats":0,"total":55,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.วัดเพลง","recloser":1,"frtu":3,"capa":1,"lbs":0,"ats":0,"total":5,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.ดำเนินสะดวก","recloser":12,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":45,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.บ้านโป่ง","recloser":9,"frtu":44,"capa":1,"lbs":3,"ats":0,"total":57,"period":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","team":3},{"name":"กฟส.กรับใหญ่","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.หนองปลาหมอ","recloser":4,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":14,"period":"กันยายน-ธันวาคม","team":3}]},"10":{"กฟจ.ราชบุรี":[{"name":"กฟจ.ราชบุรี","recloser":26,"frtu":84,"capa":5,"lbs":3,"ats":0,"total":118,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.จอมบึง","recloser":13,"frtu":35,"capa":4,"lbs":1,"ats":0,"total":53,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.ด่านทับตะโก","recloser":4,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":12,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.สวนผึ้ง","recloser":14,"frtu":31,"capa":1,"lbs":0,"ats":0,"total":46,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.บ้านคา","recloser":5,"frtu":10,"capa":1,"lbs":0,"ats":0,"total":16,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.โพธาราม","recloser":8,"frtu":64,"capa":4,"lbs":3,"ats":0,"total":79,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ดอนไผ่","recloser":5,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":18,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.บางแพ","recloser":6,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":39,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.นางแก้ว","recloser":7,"frtu":13,"capa":2,"lbs":0,"ats":0,"total":22,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ปากท่อ","recloser":13,"frtu":36,"capa":5,"lbs":1,"ats":0,"total":55,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.วัดเพลง","recloser":1,"frtu":3,"capa":1,"lbs":0,"ats":0,"total":5,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.ดำเนินสะดวก","recloser":12,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":45,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.บ้านโป่ง","recloser":9,"frtu":44,"capa":1,"lbs":3,"ats":0,"total":57,"period":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","team":3},{"name":"กฟส.กรับใหญ่","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.หนองปลาหมอ","recloser":4,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":14,"period":"กันยายน-ธันวาคม","team":3}]},"11":{"กฟจ.ราชบุรี":[{"name":"กฟจ.ราชบุรี","recloser":26,"frtu":84,"capa":5,"lbs":3,"ats":0,"total":118,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.จอมบึง","recloser":13,"frtu":35,"capa":4,"lbs":1,"ats":0,"total":53,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.ด่านทับตะโก","recloser":4,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":12,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.สวนผึ้ง","recloser":14,"frtu":31,"capa":1,"lbs":0,"ats":0,"total":46,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.บ้านคา","recloser":5,"frtu":10,"capa":1,"lbs":0,"ats":0,"total":16,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.โพธาราม","recloser":8,"frtu":64,"capa":4,"lbs":3,"ats":0,"total":79,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ดอนไผ่","recloser":5,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":18,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.บางแพ","recloser":6,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":39,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.นางแก้ว","recloser":7,"frtu":13,"capa":2,"lbs":0,"ats":0,"total":22,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ปากท่อ","recloser":13,"frtu":36,"capa":5,"lbs":1,"ats":0,"total":55,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.วัดเพลง","recloser":1,"frtu":3,"capa":1,"lbs":0,"ats":0,"total":5,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.ดำเนินสะดวก","recloser":12,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":45,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.บ้านโป่ง","recloser":9,"frtu":44,"capa":1,"lbs":3,"ats":0,"total":57,"period":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","team":3},{"name":"กฟส.กรับใหญ่","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.หนองปลาหมอ","recloser":4,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":14,"period":"กันยายน-ธันวาคม","team":3}]},"12":{"กฟจ.ราชบุรี":[{"name":"กฟจ.ราชบุรี","recloser":26,"frtu":84,"capa":5,"lbs":3,"ats":0,"total":118,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.จอมบึง","recloser":13,"frtu":35,"capa":4,"lbs":1,"ats":0,"total":53,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.ด่านทับตะโก","recloser":4,"frtu":8,"capa":0,"lbs":0,"ats":0,"total":12,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.สวนผึ้ง","recloser":14,"frtu":31,"capa":1,"lbs":0,"ats":0,"total":46,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.บ้านคา","recloser":5,"frtu":10,"capa":1,"lbs":0,"ats":0,"total":16,"period":"กันยายน-ธันวาคม","team":1},{"name":"กฟส.โพธาราม","recloser":8,"frtu":64,"capa":4,"lbs":3,"ats":0,"total":79,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ดอนไผ่","recloser":5,"frtu":11,"capa":2,"lbs":0,"ats":0,"total":18,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.บางแพ","recloser":6,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":39,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.นางแก้ว","recloser":7,"frtu":13,"capa":2,"lbs":0,"ats":0,"total":22,"period":"กันยายน-ธันวาคม","team":2},{"name":"กฟส.ปากท่อ","recloser":13,"frtu":36,"capa":5,"lbs":1,"ats":0,"total":55,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.วัดเพลง","recloser":1,"frtu":3,"capa":1,"lbs":0,"ats":0,"total":5,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.ดำเนินสะดวก","recloser":12,"frtu":30,"capa":3,"lbs":0,"ats":0,"total":45,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.บ้านโป่ง","recloser":9,"frtu":44,"capa":1,"lbs":3,"ats":0,"total":57,"period":"มกราคม,กุมภาพันธ์,กันยายน-ธันวาคม","team":3},{"name":"กฟส.กรับใหญ่","recloser":3,"frtu":6,"capa":0,"lbs":0,"ats":0,"total":9,"period":"กันยายน-ธันวาคม","team":3},{"name":"กฟส.หนองปลาหมอ","recloser":4,"frtu":10,"capa":0,"lbs":0,"ats":0,"total":14,"period":"กันยายน-ธันวาคม","team":3}]}},"month_summary":{"1":{"provinces":["กฟจ.ราชบุรี","กฟจ.สมุทรสงคราม"],"total":150,"has_data":true},"2":{"provinces":["กฟจ.ระนอง","กฟจ.ราชบุรี"],"total":216,"has_data":true},"3":{"provinces":["กฟจ.ระนอง"],"total":159,"has_data":true},"4":{"provinces":["กฟจ.ชุมพร"],"total":412,"has_data":true},"5":{"provinces":["กฟจ.ชุมพร"],"total":412,"has_data":true},"6":{"provinces":["กฟจ.ชุมพร"],"total":412,"has_data":true},"7":{"provinces":["กฟจ.ประจวบคีรีขันธ์","กฟจ.เพชรบุรี"],"total":810,"has_data":true},"8":{"provinces":["กฟจ.ประจวบคีรีขันธ์","กฟจ.เพชรบุรี"],"total":810,"has_data":true},"9":{"provinces":["กฟจ.ประจวบคีรีขันธ์","กฟจ.เพชรบุรี","กฟจ.ราชบุรี"],"total":1398,"has_data":true},"10":{"provinces":["กฟจ.ราชบุรี"],"total":588,"has_data":true},"11":{"provinces":["กฟจ.ราชบุรี"],"total":588,"has_data":true},"12":{"provinces":["กฟจ.ราชบุรี"],"total":588,"has_data":true}},"stats":{"total":2062,"recloser":485,"frtu":1457,"capa":92,"lbs":25},"colors":{"กฟจ.ระนอง":{"bg":"#bae6fd","border":"#0ea5e9","text":"#0369a1","dark":"#0284c7"},"กฟจ.ชุมพร":{"bg":"#bbf7d0","border":"#22c55e","text":"#166534","dark":"#16a34a"},"กฟจ.ประจวบคีรีขันธ์":{"bg":"#fde68a","border":"#f59e0b","text":"#92400e","dark":"#d97706"},"กฟจ.เพชรบุรี":{"bg":"#e9d5ff","border":"#8b5cf6","text":"#5b21b6","dark":"#7c3aed"},"กฟจ.ราชบุรี":{"bg":"#fecaca","border":"#ef4444","text":"#991b1b","dark":"#dc2626"},"กฟจ.สมุทรสงคราม":{"bg":"#99f6e4","border":"#14b8a6","text":"#134e4a","dark":"#0d9488"}},"province_order":["กฟจ.ระนอง","กฟจ.ชุมพร","กฟจ.ประจวบคีรีขันธ์","กฟจ.เพชรบุรี","กฟจ.ราชบุรี","กฟจ.สมุทรสงคราม"],"month_names_short":["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],"month_names_full":["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],"current_month":7};
+const PM_MONTHS_S = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const PM_MONTHS_F = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const PM_COLORS = PM_D.colors;
+const PM_CUR_M = PM_D.current_month;
+let pmActiveMonth = null;
+
+function initPM(){
+  const s=PM_D.stats;
+  document.getElementById('pm-total').textContent=fmt(s.total);
+  document.getElementById('pm-rec').textContent=fmt(s.recloser);
+  document.getElementById('pm-frtu').textContent=fmt(s.frtu);
+  document.getElementById('pm-capa').textContent=fmt(s.capa);
+  document.getElementById('pm-lbs').textContent=fmt(s.lbs);
+  pmBuildGantt(); pmBuildMonthSel();
+  pmSelectMonth(PM_CUR_M);
+}
+
+function pmBuildGantt(){
+  const todayPct=((PM_CUR_M-1)/12*100).toFixed(2);
+  let html='<div class="pm-gantt-mhdr"><div></div>';
+  for(let m=1;m<=12;m++){
+    html+='<div class="pm-gmlab'+(m===PM_CUR_M?' today':'')+'" >'+PM_MONTHS_S[m]+'</div>';
+  }
+  html+='</div>';
+  PM_D.gantt.forEach(row=>{
+    const c=row.color;
+    html+='<div class="pm-gantt-row">';
+    html+='<div class="pm-prov-label">'+row.province+'<small>'+fmt(row.total)+' ชุด</small></div>';
+    html+='<div class="pm-track" data-prov="'+row.province+'">';
+    for(let m=1;m<=11;m++) html+='<div class="pm-sep" style="left:'+(m/12*100).toFixed(2)+'%"></div>';
+    html+='<div class="pm-today-line" style="left:'+todayPct+'%"><div class="pm-today-lbl">TODAY</div></div>';
+    row.segments.forEach(seg=>{
+      const s2=seg[0],e2=seg[1];
+      const left=((s2-1)/12*100).toFixed(2);
+      const width=((e2-s2+1)/12*100).toFixed(2);
+      const lbl=PM_MONTHS_S[s2]+(s2!==e2?' – '+PM_MONTHS_S[e2]:'');
+      html+='<div class="pm-bar" style="left:'+left+'%;width:'+width+'%;background:'+c.border+';box-shadow:0 2px 6px '+c.border+'55" onclick="pmSelectMonth('+s2+')">';
+      html+='<span class="pm-bar-lbl">'+lbl+'</span></div>';
+    });
+    html+='</div></div>';
+  });
+  document.getElementById('pmGanttInner').innerHTML=html;
+  let leg='';
+  PM_D.province_order.forEach(p=>{
+    const c=PM_COLORS[p]||{};
+    leg+='<div class="pm-leg-chip" style="background:'+c.bg+'25;border-color:'+c.border+';color:'+c.dark+'" onclick="pmFilterProv(this,\''+p+'\')"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c.border+'"></span>'+p+'</div>';
+  });
+  document.getElementById('pmLegend').innerHTML=leg;
+}
+
+let pmActiveProvFilter=null;
+function pmFilterProv(el,prov){
+  if(pmActiveProvFilter===prov){pmActiveProvFilter=null;document.querySelectorAll('.pm-leg-chip').forEach(c=>c.classList.remove('dim'));document.querySelectorAll('.pm-track').forEach(t=>t.style.opacity='1');}
+  else{pmActiveProvFilter=prov;document.querySelectorAll('.pm-leg-chip').forEach(c=>c.classList.toggle('dim',c.textContent.trim()!==prov));document.querySelectorAll('.pm-track').forEach(t=>t.style.opacity=t.dataset.prov===prov?'1':'0.2');}
+}
+
+function pmBuildMonthSel(){
+  let html='';
+  for(let m=1;m<=12;m++){
+    const ms=PM_D.month_summary[String(m)];
+    const hasData=ms&&ms.has_data;
+    let cls='pm-mbtn'+(hasData?' has-d':'')+(m===PM_CUR_M?' today-m':'');
+    let dots='';
+    if(ms&&ms.provinces)ms.provinces.forEach(p=>{const c=PM_COLORS[p];if(c)dots+='<div class="pm-mdot" style="background:'+c.border+'"></div>';});
+    html+='<div class="'+cls+'" onclick="pmSelectMonth('+m+')" id="pm-mbtn-'+m+'">';
+    html+='<div class="pm-mshort">'+PM_MONTHS_S[m]+'</div>';
+    html+='<div class="pm-mdots">'+dots+'</div>';
+    html+='<div class="pm-mcnt">'+(hasData?fmt(ms.total)+' ชุด':'')+'</div></div>';
+  }
+  document.getElementById('pmMonthSel').innerHTML=html;
+}
+
+function pmSelectMonth(m){
+  if(pmActiveMonth===m){pmActiveMonth=null;pmRenderDetail(null);pmUpdateBtns(null);return;}
+  pmActiveMonth=m;pmRenderDetail(m);pmUpdateBtns(m);
+  document.getElementById('pmDetailWrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function pmUpdateBtns(m){
+  document.querySelectorAll('.pm-mbtn').forEach(b=>b.classList.remove('active'));
+  if(m)document.getElementById('pm-mbtn-'+m)?.classList.add('active');
+}
+
+function pmRenderDetail(m){
+  const wrap=document.getElementById('pmDetailWrap');
+  if(!m){wrap.innerHTML='<div class="pm-empty">👆 เลือกเดือนด้านบนเพื่อดูรายละเอียดแผนการเข้าบำรุงรักษา</div>';return;}
+  const ms=PM_D.month_summary[String(m)];
+  if(!ms||!ms.has_data){wrap.innerHTML='<div class="pm-empty">ไม่มีแผนบำรุงรักษาในเดือน '+PM_MONTHS_F[m]+'</div>';return;}
+  const md=PM_D.month_data[String(m)];
+  let html='<div class="pm-detail-hdr">';
+  html+='<div><div class="pm-month-big">'+PM_MONTHS_F[m]+'</div>';
+  const provLabels=ms.provinces.map(p=>{const c=PM_COLORS[p]||{};return '<span style="color:'+(c.dark||'#94a3b8')+'">'+p+'</span>';}).join(' · ');
+  html+='<div class="pm-month-sub">'+provLabels+'</div></div>';
+  html+='<div class="pm-total-badge"><strong>'+fmt(ms.total)+'</strong>ชุดอุปกรณ์</div></div>';
+  html+='<div class="pm-prov-cards">';
+  PM_D.province_order.forEach(prov=>{
+    if(!md[prov])return;
+    const sts=md[prov];
+    const c=PM_COLORS[prov]||{};
+    const pt=sts.reduce((s,r)=>s+r.total,0);
+    const pr=sts.reduce((s,r)=>s+r.recloser,0);
+    const pf=sts.reduce((s,r)=>s+r.frtu,0);
+    const pc=sts.reduce((s,r)=>s+r.capa,0);
+    const pl=sts.reduce((s,r)=>s+r.lbs,0);
+    html+='<div class="pm-pcard" style="border-color:'+c.border+'40">';
+    html+='<div class="pm-pcard-hdr" style="background:'+c.border+'22">';
+    html+='<div class="pm-pcard-name" style="color:'+c.dark+'">'+prov+'</div>';
+    html+='<div class="pm-pcard-total" style="color:'+c.dark+'">'+fmt(pt)+'<span>ชุด</span></div></div>';
+    html+='<div class="pm-pcard-body">';
+    const bars=[{v:pr,col:'#FF8200',l:'Recloser'},{v:pf,col:'#f87171',l:'FRTU'},{v:pc,col:'#34d399',l:'SW Capa'},{v:pl,col:'#a78bfa',l:'LBS'}].filter(x=>x.v>0);
+    if(bars.length){
+      html+='<div class="pm-typebars">';
+      bars.forEach(b=>html+='<div class="pm-typebar" style="flex:'+b.v+';background:'+b.col+'"></div>');
+      html+='</div><div class="pm-typeleg">';
+      bars.forEach(b=>html+='<div class="pm-typeleg-item"><div class="pm-typeleg-dot" style="background:'+b.col+'"></div>'+b.l+' <strong>'+fmt(b.v)+'</strong></div>');
+      html+='</div>';
+    }
+    html+='<div class="pm-st-list">';
+    [...sts].sort((a,b)=>b.total-a.total).forEach(st=>{
+      html+='<div class="pm-st-row"><div class="pm-st-name" title="'+st.name+'">'+st.name+'</div>';
+      html+='<div class="pm-st-devs">';
+      if(st.recloser)html+='<span class="pm-dbadge pm-drec">R:'+st.recloser+'</span>';
+      if(st.frtu)html+='<span class="pm-dbadge pm-dfrtu">F:'+st.frtu+'</span>';
+      if(st.capa)html+='<span class="pm-dbadge pm-dcapa">C:'+st.capa+'</span>';
+      html+='<span class="pm-dbadge pm-dtot">'+st.total+'</span></div>';
+      html+='<div class="pm-st-team">ชุด'+st.team+'</div></div>';
+    });
+    html+='</div>';
+    const ups=[...new Set(sts.map(s=>s.period))];
+    html+='<div class="pm-teamline">';
+    ups.forEach(p=>html+='<div class="pm-teambadge">📅 '+p+'</div>');
+    html+='</div></div></div>';
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+function refreshAll(){
+  swapChartFilter.status=''; swapChartFilter.budget=''; frtuChartFilter.gff='';
+  initSwap(); initJA(); initCapa(); initFRTU(); initPM();
+}
+
+// ===== Excel Upload Handler =====
+function handleExcelUpload(input){
+  const file=input.files[0]; if(!file)return;
+  const btn=document.querySelector('.upload-btn');
+  btn.innerHTML='⏳ กำลังโหลด...'; btn.disabled=true;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      const log=[];
+      const swapWS=xlFindSheet(wb,['ติดตามสับเปลี่ยน','สับเปลี่ยน','swap'],log,'SWAP');
+      const jaWS=xlFindSheet(wb,['งบ JA2900','JA2900','JA 2900','งบJA2900'],log,'JA');
+      const capaWS=xlFindSheet(wb,['ติดตาม Capa Unit','Capa Unit','CapaUnit','capa'],log,'CAPA');
+      const frtuWS=xlFindSheet(wb,['ติดตามแก้ไข FRTU','แก้ไข FRTU','FRTU','frtu'],log,'FRTU');
+      if(swapWS) DATA.swap=parseSwapSheet(swapWS);
+      if(jaWS)   DATA.ja2900=parseJASheet(jaWS);
+      if(capaWS) DATA.capa=parseCapaSheet(capaWS);
+      if(frtuWS) DATA.frtu=parseFRTUSheet(frtuWS);
+      refreshAll();
+      const found=log.filter(l=>l.ok).map(l=>l.name);
+      const miss=log.filter(l=>!l.ok).map(l=>l.name);
+      let msg='✅ อัปเดตแล้ว!';
+      if(miss.length) msg='⚠️ บาง Sheet ไม่พบ';
+      btn.innerHTML=msg;
+      btn.style.background=miss.length?'rgba(251,191,36,0.35)':'rgba(34,197,94,0.3)';
+      if(miss.length){
+        const sheetList=wb.SheetNames.join(', ');
+        alert('⚠️ ไม่พบ Sheet: '+miss.join(', ')+'\n\nSheet ที่มีในไฟล์: '+sheetList+'\n\nSheet ที่ต้องการ:\n- ติดตามสับเปลี่ยน\n- งบ JA2900\n- ติดตาม Capa Unit\n- ติดตามแก้ไข FRTU');
+      }
+      setTimeout(()=>{btn.innerHTML='📂 อัปเดต Excel';btn.style.background='';btn.disabled=false;},3000);
+    }catch(err){
+      btn.innerHTML='❌ ผิดพลาด'; btn.style.background='rgba(239,68,68,0.3)';
+      setTimeout(()=>{btn.innerHTML='📂 อัปเดต Excel';btn.style.background='';btn.disabled=false;},3000);
+      console.error(err);
+      alert('ไม่สามารถอ่านไฟล์ได้: '+err.message);
+    }
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── helpers ──────────────────────────────────────────────────────────
+function xlFindSheet(wb,names,log,label){
+  // exact match first
+  for(const n of names){if(wb.Sheets[n]){if(log)log.push({name:label,ok:true});return wb.Sheets[n];}}
+  // partial / case-insensitive
+  const sn=wb.SheetNames;
+  for(const n of names){
+    const f=sn.find(s=>s.toLowerCase().includes(n.toLowerCase())||n.toLowerCase().includes(s.toLowerCase()));
+    if(f){if(log)log.push({name:label,ok:true});return wb.Sheets[f];}
+  }
+  if(log)log.push({name:label,ok:false});
+  return null;
+}
+
+// Smart row reader: finds header row automatically by scanning top 15 rows
+// for the row that contains the most keyword matches
+function xlSmartRows(ws, keywords){
+  const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  let bestRow=-1, bestScore=0;
+  for(let i=0;i<Math.min(15,raw.length);i++){
+    const rowStr=raw[i].map(c=>String(c||''));
+    const score=keywords.filter(kw=>rowStr.some(c=>c.includes(kw))).length;
+    if(score>bestScore){bestScore=score;bestRow=i;}
+  }
+  if(bestRow<0||bestScore===0) return [];   // no header found → return empty
+  const headers=raw[bestRow].map(c=>String(c||'').trim());
+  const result=[];
+  for(let i=bestRow+1;i<raw.length;i++){
+    const row=raw[i];
+    // skip completely empty rows
+    if(row.every(c=>c===''||c===null||c===undefined))continue;
+    const obj={};
+    headers.forEach((h,idx)=>{if(h)obj[h]=row[idx]!==undefined?row[idx]:'';});
+    result.push(obj);
+  }
+  return result;
+}
+
+// Get column value with fallback aliases
+function xlC(row,aliases){
+  for(const a of aliases){
+    if(a in row&&row[a]!==''&&row[a]!==null&&row[a]!==undefined)return row[a];
+  }
+  // partial match
+  const keys=Object.keys(row);
+  for(const a of aliases){
+    const f=keys.find(k=>k.includes(a)||a.includes(k));
+    if(f&&row[f]!==''&&row[f]!==null&&row[f]!==undefined)return row[f];
+  }
+  return '';
+}
+
+function xlBool(v){return v===true||v===1||String(v).toUpperCase()==='TRUE'||v==='1';}
+// ─────────────────────────────────────────────────────────────────────
+
+function parseSwapSheet(ws){
+  const rows=xlSmartRows(ws,['TYPE','รหัสอุปกรณ์','สถานที่','การไฟฟ้า','จังหวัด','สถานะ']);
+  const table=[],by_type={},by_province={},status_counts={},budget_counts={},gff_set=new Set();
+  rows.forEach(r=>{
+    const type=String(xlC(r,['TYPE','ประเภท'])||'');
+    const code=String(xlC(r,['รหัสอุปกรณ์','รหัส'])||'');
+    if(!type&&!code)return;
+    const loc=String(xlC(r,['สถานที่ติดตั้ง','สถานที่'])||'');
+    const gff=String(xlC(r,['พื้นที่การไฟฟ้า','การไฟฟ้า','กฟฟ'])||'');
+    const wh=String(xlC(r,['คลังพัสดุ','คลัง'])||'');
+    const prov=String(xlC(r,['จังหวัด'])||'');
+    const budget=String(xlC(r,['ใช้งบ','งบ'])||'');
+    const status=String(xlC(r,['สถานะ'])||'');
+    const workStat=String(xlC(r,['สถานะงาน','งาน'])||'');
+    const isDone=xlBool(xlC(r,['สับเปลี่ยนแล้ว']));
+    const isWait=xlBool(xlC(r,['รอสับเปลี่ยน']));
+    const grp=isDone?'สับเปลี่ยนแล้ว':isWait?'รอสับเปลี่ยน':'อื่นๆ';
+    if(type)by_type[type]=(by_type[type]||0)+1;
+    if(prov)by_province[prov]=(by_province[prov]||0)+1;
+    status_counts[grp]=(status_counts[grp]||0)+1;
+    if(status)budget_counts[status]=(budget_counts[status]||0)+1;
+    if(gff)gff_set.add(gff);
+    table.push({TYPE:type,รหัสอุปกรณ์:code,สถานที่ติดตั้ง:loc,พื้นที่การไฟฟ้า:gff,คลังพัสดุ:wh,จังหวัด:prov,ใช้งบ:budget,สถานะ:status,สถานะงาน:workStat,รอสับเปลี่ยน:isWait,สับเปลี่ยนแล้ว:isDone,กลุ่มสถานะ:grp});
+  });
+  const done=table.filter(r=>r.กลุ่มสถานะ==='สับเปลี่ยนแล้ว').length;
+  const waiting=table.filter(r=>r.กลุ่มสถานะ==='รอสับเปลี่ยน').length;
+  return{total:table.length,waiting,done,by_type,by_province,status_counts,budget_counts,gff_list:[...gff_set].sort(),table};
+}
+
+function parseJASheet(ws){
+  const rows=xlSmartRows(ws,['กฟฟ','รหัสอุปกรณ์','สถานที่','สถานะ','งบประมาณ']);
+  const table=[],by_status={},by_device={},gff_set=new Set();
+  let budget_total=0;
+  rows.forEach(r=>{
+    const gff=String(xlC(r,['กฟฟ','การไฟฟ้า','กฟฟ.'])||'');
+    const code=String(xlC(r,['รหัสอุปกรณ์','รหัส'])||'');
+    if(!gff&&!code)return;
+    const loc=String(xlC(r,['สถานที่','สถานที่ติดตั้ง'])||'');
+    const type=String(xlC(r,['TYPE','ประเภท'])||'');
+    const order=String(xlC(r,['ใบสั่ง','เลขใบสั่ง'])||'');
+    const status=String(xlC(r,['สถานะ','สถานะการดำเนินงาน','ความคืบหน้า'])||'');
+    const sap=String(xlC(r,['SAP','รหัส SAP'])||'');
+    const budRaw=xlC(r,['งบประมาณ','วงเงิน','งบ']);
+    const budget=parseFloat(String(budRaw).replace(/,/g,''))||0;
+    const budStat=String(xlC(r,['สถานะงบประมาณ','สถานะงบ'])||'');
+    if(status)by_status[status]=(by_status[status]||0)+1;
+    if(type)by_device[type]=(by_device[type]||0)+1;
+    if(gff)gff_set.add(gff);
+    budget_total+=budget;
+    table.push({กฟฟ:gff,รหัสอุปกรณ์:code,สถานที่:loc,TYPE:type,ใบสั่ง:order,สถานะ:status,SAP:sap,งบประมาณ:budget,สถานะงบประมาณ:budStat});
+  });
+  return{total:table.length,budget_total,by_status,by_device,gff_list:[...gff_set].sort(),table};
+}
+
+function parseCapaSheet(ws){
+  const rows=xlSmartRows(ws,['รหัสสั่งการ','สถานที่','กฟฟ','Total_Kvar','จำนวน']);
+  const table=[],by_province={},status_counts={},gff_set=new Set();
+  let total_kvar=0,installed=0,issued=0,in_use=0,not_use=0;
+  rows.forEach(r=>{
+    const code=String(xlC(r,['รหัสสั่งการ','รหัส'])||'');
+    const loc=String(xlC(r,['สถานที่'])||'');
+    if(!code&&!loc)return;
+    const volt=String(xlC(r,['ระดับแรงดัน','แรงดัน'])||'');
+    const gff=String(xlC(r,['กฟฟ','การไฟฟ้า'])||'');
+    const wh=String(xlC(r,['คลัง','คลังพัสดุ'])||'');
+    const kvar=parseFloat(String(xlC(r,['Total_Kvar','kvar','KVar','KVAR'])||'0').replace(/,/g,''))||0;
+    const units=parseFloat(String(xlC(r,['จำนวน_Unit','จำนวน Unit','จำนวน'])||'0'))||0;
+    const detail=String(xlC(r,['รายละเอียด','หมายเหตุ'])||'');
+    const isInstalled=xlBool(xlC(r,['ติดตั้งแล้ว']));
+    const isIssued=xlBool(xlC(r,['เบิกแล้ว']));
+    const isInUse=xlBool(xlC(r,['ใช้งานอยู่']));
+    const isNotUse=xlBool(xlC(r,['ไม่ได้ใช้งาน']));
+    let grp=String(xlC(r,['กลุ่มสถานะ','สถานะ'])||'');
+    if(!grp||grp==='-'){grp=isInstalled?'ติดตั้งแล้ว':isIssued?'เบิกแล้ว':isInUse?'ใช้งานอยู่':isNotUse?'ไม่ได้ใช้งาน':'ไม่ระบุ';}
+    if(grp)status_counts[grp]=(status_counts[grp]||0)+1;
+    if(gff){gff_set.add(gff);by_province[gff]=(by_province[gff]||0)+1;}
+    total_kvar+=kvar;
+    if(grp==='ติดตั้งแล้ว')installed++; if(grp==='เบิกแล้ว')issued++;
+    if(grp==='ใช้งานอยู่')in_use++; if(grp==='ไม่ได้ใช้งาน')not_use++;
+    table.push({ระดับแรงดัน:volt,รหัสสั่งการ:code,สถานที่:loc,กฟฟ:gff,คลัง:wh,Total_Kvar:kvar,จำนวน_Unit:units,รายละเอียด:detail,'ใช้งานอยู่':isInUse,'ไม่ได้ใช้งาน':isNotUse,'เบิกแล้ว':isIssued,'ติดตั้งแล้ว':isInstalled,กลุ่มสถานะ:grp});
+  });
+  return{total:table.length,installed,issued,in_use,not_use,total_kvar,by_province,status_counts,gff_list:[...gff_set].sort(),table};
+}
+
+function parseFRTUSheet(ws){
+  const rows=xlSmartRows(ws,['การไฟฟ้า','รหัสสั่งการ','สถานที่','รายละเอียด']);
+  const table=[],by_gff={},gff_set=new Set();
+  rows.forEach(r=>{
+    const gff=String(xlC(r,['การไฟฟ้า','กฟฟ','กฟฟ.'])||'');
+    const code=String(xlC(r,['รหัสสั่งการ','รหัส'])||'');
+    if(!gff&&!code)return;
+    const loc=String(xlC(r,['สถานที่'])||'');
+    const detail=String(xlC(r,['รายละเอียด','หมายเหตุ','ปัญหา'])||'');
+    if(gff){by_gff[gff]=(by_gff[gff]||0)+1;gff_set.add(gff);}
+    table.push({การไฟฟ้า:gff,รหัสสั่งการ:code,สถานที่:loc,รายละเอียด:detail});
+  });
+  return{total:table.length,by_gff,gff_list:[...gff_set].sort(),table};
+}
+
+// ===== Init =====
+document.addEventListener('DOMContentLoaded',function(){
+  const now=new Date();
+  const d=now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('currentDate').textContent=d;
+  document.getElementById('sbDate').textContent=d;
+  initSwap(); initJA(); initCapa(); initFRTU(); initPM();
+});
+</script>
+</body>
+</html>
