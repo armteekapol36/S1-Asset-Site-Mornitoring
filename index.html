@@ -461,6 +461,10 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="nav-item" onclick="showPanel('pm',this)" data-panel="pm">
       <span class="nav-icon">🛠️</span><span>แผนบำรุงรักษา</span>
     </div>
+    <div class="nav-section" style="margin-top:8px">โปรเจ็คอื่น</div>
+    <div class="nav-item" onclick="showPanel('pbo',this)" data-panel="pbo">
+      <span class="nav-icon">📋</span><span>รายงาน ผบอ.</span>
+    </div>
   </nav>
   <div class="sidebar-footer">⚡ PEA-S1 ระบบจำหน่าย &nbsp;|&nbsp; <span id="sbDate"></span></div>
 </div>
@@ -715,6 +719,11 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
 
+  <div class="tab-panel" id="panel-pbo" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0">
+    <iframe id="iframe-pbo" title="รายงาน ผบอ." style="width:100%;height:100%;border:none;display:block;background:#0d0a1e"
+      referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
+  </div>
+
   </div><!-- end .content -->
 </div><!-- end .main-wrap -->
 
@@ -728,8 +737,10 @@ const panelTitles = {
   ja:['งบ JA2900','ติดตามงบประมาณ JA2900'],
   capa:['Capa Unit','ติดตามการติดตั้ง Capacitor Bank'],
   frtu:['ติดตามแก้ไข FRTU','รายการ FRTU Down ที่ต้องแก้ไข'],
-  pm:['แผนบำรุงรักษา','แผนบำรุงรักษาอุปกรณ์ประจำปี 2569']
+  pm:['แผนบำรุงรักษา','แผนบำรุงรักษาอุปกรณ์ประจำปี 2569'],
+  pbo:['รายงาน ผบอ.','แดชบอร์ดรายงานการทำงานแผนก ผบอ']
 };
+const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/" };
 
 // ===== Sidebar =====
 function toggleSidebar(){
@@ -756,6 +767,10 @@ function showPanel(id, el){
   const t=panelTitles[id]||[id,''];
   document.getElementById('topbarTitle').textContent=t[0];
   document.getElementById('topbarSub').textContent=t[1];
+  if(IFRAME_PANELS[id]){
+    const ifr=document.getElementById('iframe-'+id);
+    if(ifr && !ifr.src) ifr.src=IFRAME_PANELS[id];
+  }
   if(window.innerWidth<=768) closeSidebar();
 }
 
