@@ -474,7 +474,9 @@ document.addEventListener('DOMContentLoaded', function() {
       <p id="topbarSub">รายการสับเปลี่ยนอุปกรณ์ทั้งหมด</p>
     </div>
     <div style="background:rgba(255,130,0,0.2);border:1px solid rgba(255,130,0,0.45);border-radius:8px;padding:5px 12px;font-size:0.75rem;font-weight:700;color:#FFB347;letter-spacing:0.5px;white-space:nowrap">⚡ PEA-S1 &nbsp;|&nbsp; ระบบจำหน่าย</div>
-    <button class="upload-btn" onclick="document.getElementById('excelFileInput').click()">📂 อัปเดต Excel</button>
+    <div id="liveStatusInd" style="font-size:0.72rem;font-weight:700;color:#FFB347;white-space:nowrap;padding:5px 10px;background:rgba(255,255,255,0.08);border-radius:14px">🔄 กำลังซิงค์...</div>
+    <button class="upload-btn" onclick="liveRefreshFromSheets(true)" title="ดึงข้อมูลล่าสุดจาก Google Sheets">🔄 รีเฟรชสด</button>
+    <button class="upload-btn" onclick="document.getElementById('excelFileInput').click()">📂 อัปโหลด Excel</button>
     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(this)">
     <div class="date-badge" id="currentDate"></div>
   </div>
@@ -1439,6 +1441,164 @@ function refreshAll(){
   initSwap(); initJA(); initCapa(); initFRTU(); initPM();
 }
 
+
+// ========== LIVE GOOGLE SHEETS SYNC ==========
+const GSHEET_ID = "1UI86hfClB7_JWgo-2GJe5PmmHwMmxRhIoXCcE22G_3E";
+function gvizUrl(sheetName){
+  return "https://docs.google.com/spreadsheets/d/"+GSHEET_ID+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(sheetName);
+}
+
+// RFC4180-ish CSV parser -> array of row-arrays (handles quoted fields, embedded commas/newlines, "" escaped quotes)
+function csvParse(text){
+  const rows=[]; let row=[]; let field=''; let inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"'){
+        if(text[i+1]==='"'){field+='"';i++;}
+        else{inQuotes=false;}
+      } else field+=c;
+    } else {
+      if(c==='"') inQuotes=true;
+      else if(c===','){row.push(field);field='';}
+      else if(c==='\r'){/*skip*/}
+      else if(c==='\n'){row.push(field);rows.push(row);row=[];field='';}
+      else field+=c;
+    }
+  }
+  if(field!==''||row.length){row.push(field);rows.push(row);}
+  return rows.filter(r=>r.length>1||r[0]!=='');
+}
+
+function gvFindHeaderRow(rows, mustContain){
+  for(let i=0;i<Math.min(6,rows.length);i++){
+    const line=rows[i].join('|');
+    if(mustContain.some(k=>line.includes(k))) return i;
+  }
+  return 0;
+}
+function gvBool(v){ return String(v).trim().toUpperCase()==='TRUE'; }
+function gvS(v){ return (v===undefined||v===null)?'':String(v).trim(); }
+
+// ---- SWAP: ที่,TYPE,,รหัสอุปกรณ์,สถานที่ติดตั้ง,พื้นที่การไฟฟ้า,คลังพัสดุ,จังหวัด,ใช้งบ,สถานะ,สถานะงาน,รอสับเปลี่ยน,สับเปลี่ยนแล้ว
+function gvParseSwap(rows){
+  const h=gvFindHeaderRow(rows,['TYPE','รหัสอุปกรณ์']);
+  const table=[],by_type={},by_province={},status_counts={},budget_counts={},gff_set=new Set();
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i];
+    const type=gvS(r[1]), code=gvS(r[3]);
+    if(!type&&!code) continue;
+    const loc=gvS(r[4]), gff=gvS(r[5]), wh=gvS(r[6]), prov=gvS(r[7]);
+    const budget=gvS(r[8]), status=gvS(r[9]), workStat=gvS(r[10]);
+    const isWait=gvBool(r[11]), isDone=gvBool(r[12]);
+    const grp=isDone?'สับเปลี่ยนแล้ว':isWait?'รอสับเปลี่ยน':'อื่นๆ';
+    if(type)by_type[type]=(by_type[type]||0)+1;
+    if(prov)by_province[prov]=(by_province[prov]||0)+1;
+    status_counts[grp]=(status_counts[grp]||0)+1;
+    if(status)budget_counts[status]=(budget_counts[status]||0)+1;
+    if(gff)gff_set.add(gff);
+    table.push({TYPE:type,รหัสอุปกรณ์:code,สถานที่ติดตั้ง:loc,พื้นที่การไฟฟ้า:gff,คลังพัสดุ:wh,จังหวัด:prov,ใช้งบ:budget,สถานะ:status,สถานะงาน:workStat,รอสับเปลี่ยน:isWait,สับเปลี่ยนแล้ว:isDone,กลุ่มสถานะ:grp});
+  }
+  const done=table.filter(r=>r.กลุ่มสถานะ==='สับเปลี่ยนแล้ว').length;
+  const waiting=table.filter(r=>r.กลุ่มสถานะ==='รอสับเปลี่ยน').length;
+  return{total:table.length,waiting,done,by_type,by_province,status_counts,budget_counts,gff_list:[...gff_set].sort(),table};
+}
+
+// ---- JA2900: ที่,กฟฟ.,รหัสอุปกรณ์,ชื่อสถานที่,อุปกรณ์ฯ,หมายเลข WBS,สถานะการดำเนินงาน,สถานะ SAP,งบประมาณ,สถานะงบประมาณ
+function gvParseJA(rows){
+  const h=gvFindHeaderRow(rows,['กฟฟ','รหัสอุปกรณ์']);
+  const table=[],by_status={},by_device={},gff_set=new Set();
+  let budget_total=0;
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i];
+    const gff=gvS(r[1]), code=gvS(r[2]);
+    if(!gff&&!code) continue;
+    const loc=gvS(r[3]), type=gvS(r[4]), order=gvS(r[5]);
+    const status=gvS(r[6]), sap=gvS(r[7]);
+    const budget=parseFloat(gvS(r[8]).replace(/,/g,''))||0;
+    const budStat=gvS(r[9]);
+    if(status)by_status[status]=(by_status[status]||0)+1;
+    if(type)by_device[type]=(by_device[type]||0)+1;
+    if(gff)gff_set.add(gff);
+    budget_total+=budget;
+    table.push({กฟฟ:gff,รหัสอุปกรณ์:code,สถานที่:loc,TYPE:type,ใบสั่ง:order,สถานะ:status,SAP:sap,งบประมาณ:budget,สถานะงบประมาณ:budStat});
+  }
+  return{total:table.length,budget_total,by_status,by_device,gff_list:[...gff_set].sort(),table};
+}
+
+// ---- CAPA: (title row + blank row) ปีตามบันทึก,รหัสสั่งการ,สถานที่,กฟฟ.,คลัง,Total Kvar,จำนวน Capa Unit,รายละเอียด,ใช้งานอยู่,ไม่ได้ใช้งาน,เบิกแล้ว,ติดตั้งแล้ว
+function gvParseCapa(rows){
+  const h=gvFindHeaderRow(rows,['รหัสสั่งการ','Total Kvar','Total_Kvar']);
+  const table=[],by_province={},status_counts={},gff_set=new Set();
+  let total_kvar=0,installed=0,issued=0,in_use=0,not_use=0;
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i];
+    const code=gvS(r[1]), loc=gvS(r[2]);
+    if(!code&&!loc) continue;
+    const gff=gvS(r[3]), wh=gvS(r[4]);
+    const kvar=parseFloat(gvS(r[5]).replace(/,/g,''))||0;
+    const units=parseFloat(gvS(r[6]).replace(/,/g,''))||0;
+    const detail=gvS(r[7]);
+    const isInUse=gvBool(r[8]), isNotUse=gvBool(r[9]), isIssued=gvBool(r[10]), isInstalled=gvBool(r[11]);
+    const grp=isInstalled?'ติดตั้งแล้ว':isIssued?'เบิกแล้ว':isInUse?'ใช้งานอยู่':isNotUse?'ไม่ได้ใช้งาน':'ไม่ระบุ';
+    status_counts[grp]=(status_counts[grp]||0)+1;
+    if(gff){gff_set.add(gff);by_province[gff]=(by_province[gff]||0)+1;}
+    total_kvar+=kvar;
+    if(grp==='ติดตั้งแล้ว')installed++; if(grp==='เบิกแล้ว')issued++;
+    if(grp==='ใช้งานอยู่')in_use++; if(grp==='ไม่ได้ใช้งาน')not_use++;
+    table.push({ระดับแรงดัน:'',รหัสสั่งการ:code,สถานที่:loc,กฟฟ:gff,คลัง:wh,Total_Kvar:kvar,จำนวน_Unit:units,รายละเอียด:detail,'ใช้งานอยู่':isInUse,'ไม่ได้ใช้งาน':isNotUse,'เบิกแล้ว':isIssued,'ติดตั้งแล้ว':isInstalled,กลุ่มสถานะ:grp});
+  }
+  return{total:table.length,installed,issued,in_use,not_use,total_kvar,by_province,status_counts,gff_list:[...gff_set].sort(),table};
+}
+
+// ---- FRTU Down: พื้นที่,การไฟฟ้า,รหัสสั่งการ,สถานที่,Site ID,รายละเอียด,ดำเนินการแล้ว
+function gvParseFRTU(rows){
+  const h=gvFindHeaderRow(rows,['การไฟฟ้า','รหัสสั่งการ']);
+  const table=[],by_gff={},gff_set=new Set();
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i];
+    const gff=gvS(r[1])||gvS(r[0]), code=gvS(r[2]);
+    if(!gff&&!code) continue;
+    const loc=gvS(r[3]), detail=gvS(r[5]);
+    if(gff){by_gff[gff]=(by_gff[gff]||0)+1;gff_set.add(gff);}
+    table.push({การไฟฟ้า:gff,รหัสสั่งการ:code,สถานที่:loc,รายละเอียด:detail});
+  }
+  return{total:table.length,by_gff,gff_list:[...gff_set].sort(),table};
+}
+
+async function gvFetchSheet(name){
+  const res=await fetch(gvizUrl(name),{cache:'no-store'});
+  if(!res.ok) throw new Error('fetch failed: '+name+' ('+res.status+')');
+  const text=await res.text();
+  return csvParse(text);
+}
+
+async function liveRefreshFromSheets(showUI){
+  const ind=document.getElementById('liveStatusInd');
+  if(ind){ind.innerHTML='🔄 กำลังซิงค์...';ind.style.color='#FFB347';}
+  try{
+    const [swapRows,jaRows,capaRows,frtuRows]=await Promise.all([
+      gvFetchSheet('ติดตามสับเปลี่ยน'),
+      gvFetchSheet('งบ JA2900'),
+      gvFetchSheet('ติดตาม capa unit'),
+      gvFetchSheet('ติดตาม FRTU Down'),
+    ]);
+    DATA.swap=gvParseSwap(swapRows);
+    DATA.ja2900=gvParseJA(jaRows);
+    DATA.capa=gvParseCapa(capaRows);
+    DATA.frtu=gvParseFRTU(frtuRows);
+    refreshAll();
+    const now=new Date();
+    const t=now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+    if(ind){ind.innerHTML='🟢 ข้อมูลสด &middot; อัพเดท '+t;ind.style.color='#4ade80';}
+    localStorage.removeItem && null;
+  }catch(err){
+    console.error('Live sheet sync failed:',err);
+    if(ind){ind.innerHTML='🔴 เชื่อมต่อไม่ได้ &middot; ใช้ข้อมูลล่าสุดที่บันทึกไว้';ind.style.color='#f87171';}
+  }
+}
+// ========== END LIVE GOOGLE SHEETS SYNC ==========
+
 // ===== Excel Upload Handler =====
 function handleExcelUpload(input){
   const file=input.files[0]; if(!file)return;
@@ -1641,6 +1801,7 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('currentDate').textContent=d;
   document.getElementById('sbDate').textContent=d;
   initSwap(); initJA(); initCapa(); initFRTU(); initPM();
+  liveRefreshFromSheets();
 });
 </script>
 </body>
