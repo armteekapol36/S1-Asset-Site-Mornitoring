@@ -1379,6 +1379,7 @@ function initCapa(){
   populateSelect('capa-filter-gff', d.gff_list, 'การไฟฟ้า');
   buildCapaCharts(); buildCapaLeaderboard(); filterCapa();
 }
+const CAPA_STATUS_COLORS={'ติดตั้งแล้ว':'#22c55e','เบิกแล้ว':'#6851A3','ไม่ได้ใช้งาน':'#0d9488','ใช้งานอยู่':'#ef4444','ไม่ระบุ':'#94a3b8'};
 function buildCapaCharts(){
   const d=DATA.capa;
   if(charts['capaStatus']) charts['capaStatus'].destroy();
@@ -1386,14 +1387,28 @@ function buildCapaCharts(){
   const sKeys=Object.keys(d.status_counts);
   charts['capaStatus']=new Chart(document.getElementById('capaStatusChart'),{
     type:'doughnut',
-    data:{labels:sKeys,datasets:[{data:sKeys.map(k=>d.status_counts[k]),backgroundColor:['#22c55e','#6851A3','#0d9488','#ef4444','#94a3b8'],borderWidth:2}]},
+    data:{labels:sKeys,datasets:[{data:sKeys.map(k=>d.status_counts[k]),backgroundColor:sKeys.map(k=>CAPA_STATUS_COLORS[k]||'#94a3b8'),borderWidth:2}]},
     options:{plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}
   });
   const pKeys=Object.keys(d.by_province).sort((a,b)=>d.by_province[b]-d.by_province[a]);
+  const gffStatusMatrix={};
+  pKeys.forEach(g=>gffStatusMatrix[g]={});
+  DATA.capa.table.forEach(r=>{
+    const g=r.กฟฟ; if(!g||!gffStatusMatrix[g])return;
+    const s=r.กลุ่มสถานะ||'ไม่ระบุ';
+    gffStatusMatrix[g][s]=(gffStatusMatrix[g][s]||0)+1;
+  });
+  const statusList=Object.keys(d.status_counts);
+  const provinceDatasets=statusList.map(s=>({
+    label:s,
+    data:pKeys.map(g=>gffStatusMatrix[g][s]||0),
+    backgroundColor:CAPA_STATUS_COLORS[s]||'#94a3b8',
+    borderRadius:3
+  }));
   charts['capaProvince']=new Chart(document.getElementById('capaProvinceChart'),{
     type:'bar',
-    data:{labels:pKeys,datasets:[{label:'จำนวน',data:pKeys.map(k=>d.by_province[k]),backgroundColor:'#34d399',borderRadius:5}]},
-    options:{scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}}},plugins:{legend:{display:false}}}
+    data:{labels:pKeys,datasets:provinceDatasets},
+    options:{scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}},y:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}}},plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}
   });
 }
 function buildCapaLeaderboard(){
