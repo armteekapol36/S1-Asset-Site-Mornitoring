@@ -1007,6 +1007,8 @@ function clearSelect(selId){
 }
 
 // ===== SWAP =====
+const BUDGET_PALETTE=['#22c55e','#6851A3','#f59e0b','#ef4444','#8b5cf6','#94a3b8','#0ea5e9','#f472b6','#84cc16','#eab308','#fb7185','#2dd4bf','#f97316','#a3e635','#c084fc','#60a5fa'];
+function budgetColorOf(bKeys,key){ const i=bKeys.indexOf(key); return BUDGET_PALETTE[i>=0? i%BUDGET_PALETTE.length : 0]; }
 function initSwap(){
   const d=DATA.swap;
   document.getElementById('sw-total').textContent=fmt(d.total);
@@ -1053,12 +1055,33 @@ function buildSwapCharts(){
     }
   });
   const pKeys=Object.keys(d.by_province).sort((a,b)=>d.by_province[b]-d.by_province[a]);
+  const budgetCounts=Object.assign({},d.budget_counts);
+  let swapNoStatus=0;
+  d.table.forEach(r=>{ if(!r.สถานะ) swapNoStatus++; });
+  if(swapNoStatus>0) budgetCounts['ไม่ระบุ']=swapNoStatus;
+  const bKeys=Object.keys(budgetCounts);
+  const provinceBudgetMatrix={};
+  pKeys.forEach(p=>provinceBudgetMatrix[p]={});
+  d.table.forEach(r=>{
+    const p=r.จังหวัด; if(!p||!provinceBudgetMatrix[p])return;
+    const s=r.สถานะ||'ไม่ระบุ';
+    provinceBudgetMatrix[p][s]=(provinceBudgetMatrix[p][s]||0)+1;
+  });
+  const provinceBudgetDatasets=bKeys.map(s=>({
+    label:s,
+    data:pKeys.map(p=>provinceBudgetMatrix[p][s]||0),
+    backgroundColor:budgetColorOf(bKeys,s),
+    borderRadius:3
+  }));
   charts['swapProvince']=new Chart(document.getElementById('swapProvinceChart'),{
     type:'bar',
-    data:{labels:pKeys,datasets:[{label:'จำนวนอุปกรณ์',data:pKeys.map(k=>d.by_province[k]),backgroundColor:'#6851A3'}]},
+    data:{labels:pKeys,datasets:provinceBudgetDatasets},
     options:{
-      scales:{y:{beginAtZero:true}},
-      plugins:{legend:{display:false}},
+      scales:{
+        x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}},
+        y:{stacked:true,beginAtZero:true,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.07)'}}
+      },
+      plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}},
       onClick:(e,els)=>{
         if(!els.length)return;
         const label=pKeys[els[0].index];
@@ -1067,10 +1090,9 @@ function buildSwapCharts(){
       }
     }
   });
-  const bKeys=Object.keys(d.budget_counts);
   charts['swapBudget']=new Chart(document.getElementById('swapBudgetChart'),{
     type:'doughnut',
-    data:{labels:bKeys,datasets:[{data:bKeys.map(k=>d.budget_counts[k]),backgroundColor:['#22c55e','#6851A3','#f59e0b','#ef4444','#8b5cf6','#94a3b8'],borderWidth:2}]},
+    data:{labels:bKeys,datasets:[{data:bKeys.map(k=>budgetCounts[k]),backgroundColor:bKeys.map(k=>budgetColorOf(bKeys,k)),borderWidth:2}]},
     options:{
       plugins:{
         legend:{
