@@ -492,6 +492,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="nav-item" onclick="showPanel('about',this)" data-panel="about">
       <span class="nav-icon">👥</span><span>แนะนำทีมงาน</span>
     </div>
+    <div class="nav-item" onclick="showPanel('map',this)" data-panel="map">
+      <span class="nav-icon">🗺️</span><span>แผนที่อุปกรณ์</span>
+    </div>
     <div class="nav-section" style="margin-top:8px">หน้าหลัก</div>
     <div class="nav-item active" onclick="showPanel('swap',this)" data-panel="swap">
       <span class="nav-icon">🔄</span><span>ติดตามสับเปลี่ยน</span>
@@ -509,15 +512,15 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="nav-item" onclick="showPanel('pm',this)" data-panel="pm">
       <span class="nav-icon">🛠️</span><span>แผนบำรุงรักษา</span>
     </div>
-    <div class="nav-item" onclick="showPanel('map',this)" data-panel="map">
-      <span class="nav-icon">🗺️</span><span>แผนที่อุปกรณ์</span>
-    </div>
     <div class="nav-section" style="margin-top:8px">โปรเจ็คอื่น</div>
     <div class="nav-item" onclick="showPanel('pbo',this)" data-panel="pbo">
       <span class="nav-icon">📋</span><span>รายงาน ผบอ.</span>
     </div>
     <div class="nav-item" onclick="showPanel('frtuava',this)" data-panel="frtuava">
       <span class="nav-icon">🛰️</span><span>สถานะ FRTU</span>
+    </div>
+    <div class="nav-item" onclick="showPanel('vischeck',this)" data-panel="vischeck">
+      <span class="nav-icon">🔍</span><span>Visual Check</span>
     </div>
   </nav>
   <div class="sidebar-footer">⚡ PEA-S1 ระบบจำหน่าย &nbsp;|&nbsp; <span id="sbDate"></span></div>
@@ -817,6 +820,11 @@ document.addEventListener('DOMContentLoaded', function() {
       referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
   </div>
 
+  <div class="tab-panel" id="panel-vischeck" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0">
+    <iframe id="iframe-vischeck" title="Visual Check" style="width:100%;height:100%;border:none;display:block;background:#0d0a1e"
+      referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
+  </div>
+
   <div class="tab-panel" id="panel-frtuava" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0;background:#0d0a1e">
     <div style="height:100%;display:flex;align-items:center;justify-content:center">
     <div style="text-align:center;max-width:420px;padding:32px">
@@ -906,9 +914,10 @@ const panelTitles = {
   map:['แผนที่อุปกรณ์','พิกัด Recloser / VT / FRTU / LBS 115kV จากผลบำรุงรักษา 2569'],
   pbo:['รายงาน ผบอ.','แดชบอร์ดรายงานการทำงานแผนก ผบอ'],
   frtuava:['สถานะ FRTU','ระบบติดตามสถานะ FRTU'],
-  about:['แนะนำทีมงาน','แผนกบำรุงรักษาอุปกรณ์ระบบไฟฟ้า']
+  about:['แนะนำทีมงาน','แผนกบำรุงรักษาอุปกรณ์ระบบไฟฟ้า'],
+  vischeck:['Visual Check','ตรวจสอบสภาพ Recloser / Capacitor']
 };
-const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/" };
+const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/", vischeck: "https://armteekapol36.github.io/recloser-capacitor-dashboard/" };
 
 // ===== Sidebar =====
 function toggleSidebar(){
