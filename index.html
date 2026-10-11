@@ -798,11 +798,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <label class="map-layer-chip on-capa"><input type="checkbox" checked data-layer="capa"><span class="map-legend-dot" style="background:#34d399"></span>SW Capacitor</label>
       <select class="map-select" id="mapGffSelect"><option value="">ทุกการไฟฟ้า</option></select>
       <input type="text" class="map-search" id="mapSearchInput" placeholder="🔍 ค้นหารหัสอุปกรณ์ เช่น CPA01R-01">
-      <button type="button" class="map-toggle-btn" id="mapClusterToggleBtn" onclick="toggleClusterMode()">🔗 รวมจุดเป็นกลุ่ม</button>
     </div>
 
     <div id="equipMap"></div>
-    <div class="map-note">📍 พิกัดจากชีต Recloser, FRTU, LBS 115 kV, SW Capa (เฉพาะอุปกรณ์จริงที่ติดตั้งแล้ว — ไม่รวมชีตแผนงาน/แผนเปลี่ยนที่ยังไม่ได้ติดตั้งจริง) ในไฟล์ "ผลบำรุงรักษา 2569" (ข้อมูล ณ วันที่ดึง — ยังไม่ซิงค์สดจาก Google Sheet) คลิกจุดบนแผนที่เพื่อดูรายละเอียด • วงกลมตัวเลขคือกลุ่มจุดที่อยู่ใกล้กัน (คลิกเพื่อซูม)</div>
+    <div class="map-note">📍 พิกัดจากชีต Recloser, FRTU, LBS 115 kV, SW Capa (เฉพาะอุปกรณ์จริงที่ติดตั้งแล้ว — ไม่รวมชีตแผนงาน/แผนเปลี่ยนที่ยังไม่ได้ติดตั้งจริง) ในไฟล์ "ผลบำรุงรักษา 2569" (ข้อมูล ณ วันที่ดึง — ยังไม่ซิงค์สดจาก Google Sheet) คลิกจุดบนแผนที่เพื่อดูรายละเอียด • แสดงแยกจุดทั้งหมด</div>
 
     <div class="map-table-wrap">
       <h3>รายการอุปกรณ์ (ตามตัวกรองด้านบน)</h3>
@@ -847,7 +846,6 @@ document.addEventListener('DOMContentLoaded', function() {
       <label class="map-layer-chip" style="border-color:#8b5cf6;color:#ddd6fe"><input type="checkbox" checked data-fstate="Telemetry Failure"><span class="map-legend-dot" style="background:#8b5cf6"></span>Telemetry Failure</label>
       <select class="map-select" id="frtu2GffSelect"><option value="">ทุกการไฟฟ้า</option></select>
       <input type="text" class="map-search" id="frtu2SearchInput" placeholder="🔍 ค้นหารหัสอุปกรณ์ เช่น S1-RCS-0126">
-      <button type="button" class="map-toggle-btn" id="frtu2ClusterToggleBtn" onclick="toggleFrtuClusterMode()">🔗 รวมจุดเป็นกลุ่ม</button>
     </div>
     <div id="frtuStatusMap"></div>
     <div class="map-note">📡 สถานะ Online/Offline/Connecting/Initializing/Telemetry Failure ของ FRTU/RCS/Recloser/AVR/LBS/VSP ทั้งหมด (ข้อมูล ณ วันที่ดึง — ยังไม่ซิงค์สดจาก Google Sheet) กดปุ่ม "↗ เชื่อมต่อสถานะ FRTU" มุมขวาบนเพื่อเปิดระบบ PEA-AVA ตัวจริงในแท็บใหม่</div>
@@ -2041,10 +2039,8 @@ function parseFRTUSheet(ws){
 
 // ===== Equipment Map (พิกัดอุปกรณ์ PM 2569: Recloser / VT / FRTU / LBS 115kV) =====
 let equipMapObj=null, equipMapInited=false, MAP_ALL=null;
-const mapClusterGroups={}, mapPlainGroups={};
-let mapClusterMode=true; // true = รวมจุดเป็นกลุ่ม, false = แยกจุดทั้งหมด
+const mapGroups={};
 let mapFilters={ layers:{recloser:true,frtu:true,lbs:true,capa:true}, gff:'', q:'' };
-function activeMapGroups(){ return mapClusterMode? mapClusterGroups : mapPlainGroups; }
 
 function mapColor(layer){ return {recloser:'#22d3ee',frtu:'#a78bfa',lbs:'#fb7185',capa:'#34d399'}[layer]||'#8B5CF6'; }
 function mapLabel(layer){ return {recloser:'Recloser (ผลทดสอบ)',frtu:'FRTU',lbs:'LBS 115 kV',capa:'SW Capacitor'}[layer]||layer; }
@@ -2087,8 +2083,7 @@ function mapPassFilter(r){
 }
 
 function mapRenderMarkers(){
-  const groups=activeMapGroups();
-  Object.keys(groups).forEach(layer=>groups[layer].clearLayers());
+  Object.keys(mapGroups).forEach(layer=>mapGroups[layer].clearLayers());
   const matched=[];
   MAP_ALL.forEach(r=>{
     if(r.lat==null) return;
@@ -2096,22 +2091,11 @@ function mapRenderMarkers(){
     matched.push(r);
     const m=L.circleMarker([r.lat,r.lng],{radius:6,color:'#1e1b2e',weight:1,fillColor:mapColor(r.layer),fillOpacity:0.9});
     m.bindPopup(mapPopupHtml(r));
-    groups[r.layer].addLayer(m);
+    mapGroups[r.layer].addLayer(m);
   });
   if(mapFilters.q && matched.length){
     equipMapObj.fitBounds(L.latLngBounds(matched.map(r=>[r.lat,r.lng])),{maxZoom:14,padding:[30,30]});
   }
-}
-
-function toggleClusterMode(){
-  const oldGroups=activeMapGroups();
-  Object.values(oldGroups).forEach(g=>equipMapObj.removeLayer(g));
-  mapClusterMode=!mapClusterMode;
-  const newGroups=activeMapGroups();
-  Object.values(newGroups).forEach(g=>equipMapObj.addLayer(g));
-  mapRenderMarkers();
-  const btn=document.getElementById('mapClusterToggleBtn');
-  btn.textContent = mapClusterMode? '🔗 รวมจุดเป็นกลุ่ม' : '📍 แยกจุดทั้งหมด';
 }
 
 function mapRenderTable(){
@@ -2143,13 +2127,9 @@ function initEquipMap(){
   }).addTo(equipMapObj);
 
   ['recloser','frtu','lbs','capa'].forEach(layer=>{
-    mapClusterGroups[layer]=L.markerClusterGroup({maxClusterRadius:45, iconCreateFunction:function(cluster){
-      const c=mapColor(layer);
-      return L.divIcon({html:'<div style="background:'+c+';color:#1e1b2e;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;border:2px solid rgba(255,255,255,0.8)">'+cluster.getChildCount()+'</div>', className:'', iconSize:[34,34]});
-    }});
-    mapPlainGroups[layer]=L.layerGroup();
+    mapGroups[layer]=L.layerGroup();
   });
-  Object.values(mapClusterGroups).forEach(g=>equipMapObj.addLayer(g)); // default mode: รวมจุดเป็นกลุ่ม
+  Object.values(mapGroups).forEach(g=>equipMapObj.addLayer(g)); // แยกจุดทั้งหมดเสมอ (ไม่รวมกลุ่ม)
 
   mapRenderMarkers();
   mapRenderTable();
@@ -2172,10 +2152,8 @@ function initEquipMap(){
 // ===== FRTU Status Map (Online/Offline/Connecting/Initializing/Telemetry Failure) =====
 let frtuMapObj=null, frtuMapInited=false;
 const FRTU_STATES=['Online','Offline','Connecting','Initializing','Telemetry Failure'];
-const frtuClusterGroups={}, frtuPlainGroups={};
-let frtuClusterMode=true; // true = รวมจุดเป็นกลุ่ม, false = แยกจุดทั้งหมด
+const frtuGroups={};
 let frtuFilters={ states:{'Online':true,'Offline':true,'Connecting':true,'Initializing':true,'Telemetry Failure':true}, gff:'', q:'' };
-function activeFrtuGroups(){ return frtuClusterMode? frtuClusterGroups : frtuPlainGroups; }
 
 function frtuStateColor(state){ return {'Online':'#22c55e','Offline':'#ef4444','Connecting':'#f59e0b','Initializing':'#3b82f6','Telemetry Failure':'#8b5cf6'}[state]||'#94a3b8'; }
 
@@ -2209,8 +2187,7 @@ function frtuPassFilter(r){
 }
 
 function frtuRenderMarkers(){
-  const groups=activeFrtuGroups();
-  Object.keys(groups).forEach(state=>groups[state].clearLayers());
+  Object.keys(frtuGroups).forEach(state=>frtuGroups[state].clearLayers());
   const matched=[];
   FRTU_STATUS.forEach(r=>{
     if(r.lat==null) return;
@@ -2218,22 +2195,11 @@ function frtuRenderMarkers(){
     matched.push(r);
     const m=L.circleMarker([r.lat,r.lng],{radius:6,color:'#1e1b2e',weight:1,fillColor:frtuStateColor(r.state),fillOpacity:0.9});
     m.bindPopup(frtuPopupHtml(r));
-    groups[r.state].addLayer(m);
+    frtuGroups[r.state].addLayer(m);
   });
   if(frtuFilters.q && matched.length){
     frtuMapObj.fitBounds(L.latLngBounds(matched.map(r=>[r.lat,r.lng])),{maxZoom:14,padding:[30,30]});
   }
-}
-
-function toggleFrtuClusterMode(){
-  const oldGroups=activeFrtuGroups();
-  Object.values(oldGroups).forEach(g=>frtuMapObj.removeLayer(g));
-  frtuClusterMode=!frtuClusterMode;
-  const newGroups=activeFrtuGroups();
-  Object.values(newGroups).forEach(g=>frtuMapObj.addLayer(g));
-  frtuRenderMarkers();
-  const btn=document.getElementById('frtu2ClusterToggleBtn');
-  btn.textContent = frtuClusterMode? '🔗 รวมจุดเป็นกลุ่ม' : '📍 แยกจุดทั้งหมด';
 }
 
 function initFrtuMap(){
@@ -2252,13 +2218,9 @@ function initFrtuMap(){
   }).addTo(frtuMapObj);
 
   FRTU_STATES.forEach(state=>{
-    frtuClusterGroups[state]=L.markerClusterGroup({maxClusterRadius:45, iconCreateFunction:function(cluster){
-      const c=frtuStateColor(state);
-      return L.divIcon({html:'<div style="background:'+c+';color:#1e1b2e;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;border:2px solid rgba(255,255,255,0.8)">'+cluster.getChildCount()+'</div>', className:'', iconSize:[34,34]});
-    }});
-    frtuPlainGroups[state]=L.layerGroup();
+    frtuGroups[state]=L.layerGroup();
   });
-  Object.values(frtuClusterGroups).forEach(g=>frtuMapObj.addLayer(g)); // default mode: รวมจุดเป็นกลุ่ม
+  Object.values(frtuGroups).forEach(g=>frtuMapObj.addLayer(g)); // แยกจุดทั้งหมดเสมอ (ไม่รวมกลุ่ม)
 
   frtuRenderMarkers();
 
