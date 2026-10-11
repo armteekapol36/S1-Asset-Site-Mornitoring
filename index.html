@@ -161,6 +161,8 @@ document.addEventListener('DOMContentLoaded', function() {
   .map-select, .map-search{padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(13,10,30,0.6);color:#e2e8f0;font-size:0.82rem;font-family:inherit;outline:none}
   .map-select:focus,.map-search:focus{border-color:#FF8200}
   .map-search{flex:1;min-width:160px}
+  .map-toggle-btn{padding:7px 14px;border-radius:20px;border:1.5px solid rgba(255,130,0,0.5);background:rgba(255,130,0,0.15);color:#FFB347;font-size:0.8rem;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px}
+  .map-toggle-btn:hover{background:rgba(255,130,0,0.28)}
   #equipMap{height:560px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
   .map-legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .map-note{font-size:0.72rem;color:#8a84ad;margin-top:10px;line-height:1.6}
@@ -793,6 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <label class="map-layer-chip on-capaplan"><input type="checkbox" checked data-layer="capaplan"><span class="map-legend-dot" style="background:#a3e635"></span>แผนเปลี่ยนตู้ Capa Arm</label>
       <select class="map-select" id="mapGffSelect"><option value="">ทุกการไฟฟ้า</option></select>
       <input type="text" class="map-search" id="mapSearchInput" placeholder="🔍 ค้นหารหัสอุปกรณ์ เช่น CPA01R-01">
+      <button type="button" class="map-toggle-btn" id="mapClusterToggleBtn" onclick="toggleClusterMode()">🔗 รวมจุดเป็นกลุ่ม</button>
     </div>
 
     <div id="equipMap"></div>
@@ -1981,8 +1984,10 @@ function parseFRTUSheet(ws){
 
 // ===== Equipment Map (พิกัดอุปกรณ์ PM 2569: Recloser / VT / FRTU / LBS 115kV) =====
 let equipMapObj=null, equipMapInited=false, MAP_ALL=null;
-const mapMarkerClusters={};
+const mapClusterGroups={}, mapPlainGroups={};
+let mapClusterMode=true; // true = รวมจุดเป็นกลุ่ม, false = แยกจุดทั้งหมด
 let mapFilters={ layers:{recloser:true,vtplan:true,frtu:true,lbs:true,capa:true,capaplan:true}, gff:'', q:'' };
+function activeMapGroups(){ return mapClusterMode? mapClusterGroups : mapPlainGroups; }
 
 function mapColor(layer){ return {recloser:'#22d3ee',vtplan:'#fbbf24',frtu:'#a78bfa',lbs:'#fb7185',capa:'#34d399',capaplan:'#a3e635'}[layer]||'#8B5CF6'; }
 function mapLabel(layer){ return {recloser:'Recloser (ผลทดสอบ)',vtplan:'แผนเปลี่ยน VT',frtu:'FRTU',lbs:'LBS 115 kV',capa:'SW Capacitor',capaplan:'แผนเปลี่ยนตู้ Capa Arm'}[layer]||layer; }
@@ -2030,7 +2035,8 @@ function mapPassFilter(r){
 }
 
 function mapRenderMarkers(){
-  Object.keys(mapMarkerClusters).forEach(layer=>mapMarkerClusters[layer].clearLayers());
+  const groups=activeMapGroups();
+  Object.keys(groups).forEach(layer=>groups[layer].clearLayers());
   const matched=[];
   MAP_ALL.forEach(r=>{
     if(r.lat==null) return;
@@ -2038,11 +2044,22 @@ function mapRenderMarkers(){
     matched.push(r);
     const m=L.circleMarker([r.lat,r.lng],{radius:6,color:'#1e1b2e',weight:1,fillColor:mapColor(r.layer),fillOpacity:0.9});
     m.bindPopup(mapPopupHtml(r));
-    mapMarkerClusters[r.layer].addLayer(m);
+    groups[r.layer].addLayer(m);
   });
   if(mapFilters.q && matched.length){
     equipMapObj.fitBounds(L.latLngBounds(matched.map(r=>[r.lat,r.lng])),{maxZoom:14,padding:[30,30]});
   }
+}
+
+function toggleClusterMode(){
+  const oldGroups=activeMapGroups();
+  Object.values(oldGroups).forEach(g=>equipMapObj.removeLayer(g));
+  mapClusterMode=!mapClusterMode;
+  const newGroups=activeMapGroups();
+  Object.values(newGroups).forEach(g=>equipMapObj.addLayer(g));
+  mapRenderMarkers();
+  const btn=document.getElementById('mapClusterToggleBtn');
+  btn.textContent = mapClusterMode? '🔗 รวมจุดเป็นกลุ่ม' : '📍 แยกจุดทั้งหมด';
 }
 
 function mapRenderTable(){
@@ -2068,18 +2085,19 @@ function initEquipMap(){
   const sel=document.getElementById('mapGffSelect');
   [...gffSet].sort().forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o); });
 
-  equipMapObj=L.map('equipMap',{scrollWheelZoom:true}).setView([10.3,99.3],7);
+  equipMapObj=L.map('equipMap',{scrollWheelZoom:true, preferCanvas:true}).setView([10.3,99.3],7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; OpenStreetMap contributors', maxZoom:18
   }).addTo(equipMapObj);
 
   ['recloser','vtplan','frtu','lbs','capa','capaplan'].forEach(layer=>{
-    mapMarkerClusters[layer]=L.markerClusterGroup({maxClusterRadius:45, iconCreateFunction:function(cluster){
+    mapClusterGroups[layer]=L.markerClusterGroup({maxClusterRadius:45, iconCreateFunction:function(cluster){
       const c=mapColor(layer);
       return L.divIcon({html:'<div style="background:'+c+';color:#1e1b2e;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;border:2px solid rgba(255,255,255,0.8)">'+cluster.getChildCount()+'</div>', className:'', iconSize:[34,34]});
     }});
-    equipMapObj.addLayer(mapMarkerClusters[layer]);
+    mapPlainGroups[layer]=L.layerGroup();
   });
+  Object.values(mapClusterGroups).forEach(g=>equipMapObj.addLayer(g)); // default mode: รวมจุดเป็นกลุ่ม
 
   mapRenderMarkers();
   mapRenderTable();
