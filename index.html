@@ -1379,7 +1379,7 @@ function initCapa(){
   populateSelect('capa-filter-gff', d.gff_list, 'การไฟฟ้า');
   buildCapaCharts(); buildCapaLeaderboard(); filterCapa();
 }
-const CAPA_STATUS_COLORS={'ติดตั้งแล้ว':'#22c55e','เบิกแล้ว':'#6851A3','ไม่ได้ใช้งาน':'#0d9488','ใช้งานอยู่':'#ef4444','ไม่ระบุ':'#94a3b8'};
+const CAPA_STATUS_COLORS={'ติดตั้งแล้ว':'#22c55e','เบิกแล้ว':'#6851A3','ไม่ได้ใช้งาน':'#ef4444','ใช้งานอยู่':'#0d9488','ไม่ระบุ':'#94a3b8'};
 function buildCapaCharts(){
   const d=DATA.capa;
   if(charts['capaStatus']) charts['capaStatus'].destroy();
