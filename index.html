@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="nav-item" onclick="showPanel('pbo',this)" data-panel="pbo">
       <span class="nav-icon">📋</span><span>รายงาน ผบอ.</span>
     </div>
-    <div class="nav-item" onclick="showPanel('frtuava',this)" data-panel="frtuava">
+    <div class="nav-item" onclick="showPanel('frtuava',this);window.open('https://pea-ava.up.railway.app/login','_blank')" data-panel="frtuava">
       <span class="nav-icon">🛰️</span><span>สถานะ FRTU</span>
     </div>
   </nav>
@@ -727,12 +727,19 @@ document.addEventListener('DOMContentLoaded', function() {
       referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
   </div>
 
-  <div class="tab-panel" id="panel-frtuava" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0;position:relative">
-    <div style="position:absolute;top:10px;right:16px;z-index:5">
-      <a href="https://pea-ava.up.railway.app/login" target="_blank" rel="noopener" style="font-size:0.75rem;color:#FFB347;background:rgba(13,10,30,0.7);padding:5px 12px;border-radius:14px;text-decoration:none;border:1px solid rgba(255,130,0,0.4)">↗ เปิดในแท็บใหม่</a>
+  <div class="tab-panel" id="panel-frtuava" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0;display:flex;align-items:center;justify-content:center;background:#0d0a1e">
+    <div style="text-align:center;max-width:420px;padding:32px">
+      <div style="font-size:3rem;margin-bottom:14px">🛰️</div>
+      <div style="color:#e2e8f0;font-size:1.05rem;font-weight:700;margin-bottom:8px">ระบบติดตามสถานะ FRTU</div>
+      <div style="color:#94a3b8;font-size:0.85rem;line-height:1.6;margin-bottom:22px">
+        ระบบนี้ใช้การเข้าสู่ระบบผ่าน SSO ของ กฟภ. ซึ่งไม่อนุญาตให้แสดงผลฝังในหน้าอื่น (เพื่อความปลอดภัย)
+        กดปุ่มด้านล่างเพื่อเปิดในแท็บใหม่
+      </div>
+      <a href="https://pea-ava.up.railway.app/login" target="_blank" rel="noopener"
+        style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#FF8200,#FFA733);color:#1D0F4A;font-weight:800;padding:12px 26px;border-radius:24px;text-decoration:none;font-size:0.9rem;box-shadow:0 4px 14px rgba(255,130,0,0.35)">
+        ↗ เปิด สถานะ FRTU
+      </a>
     </div>
-    <iframe id="iframe-frtuava" title="สถานะ FRTU" style="width:100%;height:100%;border:none;display:block;background:#0d0a1e"
-      referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
   </div>
 
   </div><!-- end .content -->
@@ -752,7 +759,7 @@ const panelTitles = {
   pbo:['รายงาน ผบอ.','แดชบอร์ดรายงานการทำงานแผนก ผบอ'],
   frtuava:['สถานะ FRTU','ระบบติดตามสถานะ FRTU']
 };
-const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/", frtuava: "https://pea-ava.up.railway.app/login" };
+const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/" };
 
 // ===== Sidebar =====
 function toggleSidebar(){
