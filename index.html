@@ -171,6 +171,8 @@ document.addEventListener('DOMContentLoaded', function() {
   .map-table-wrap tbody tr:hover{background:rgba(255,255,255,0.05)}
   .map-pea-popup{font-family:'Sarabun','Segoe UI',Tahoma,sans-serif;font-size:0.8rem;color:#1e1b2e;min-width:170px}
   .map-pea-popup b{color:#4A2E8A}
+  .map-nav-btn{display:inline-block;margin-top:8px;padding:5px 12px;border-radius:16px;background:#4A2E8A;color:white !important;font-size:0.76rem;font-weight:700;text-decoration:none;transition:background 0.15s}
+  .map-nav-btn:hover{background:#6851A3}
   .leaflet-popup-content-wrapper{border-radius:10px}
 
   /* Chart filter badge */
@@ -2011,7 +2013,9 @@ function mapFillKPIs(){
 
 function mapPopupHtml(r){
   const typeLine=(r.type && r.type!==mapLabel(r.layer))? (' · '+r.type) : '';
-  return '<div class="map-pea-popup"><b>'+r.code+'</b><br>'+mapLabel(r.layer)+typeLine+'<br>'+(r.loc||'-')+'<br>'+(r.gff||'')+(r.extra?('<br><span style="color:#64748b">'+r.extra+'</span>'):'')+'</div>';
+  const navUrl='https://www.google.com/maps/dir/?api=1&destination='+r.lat+','+r.lng;
+  return '<div class="map-pea-popup"><b>'+r.code+'</b><br>'+mapLabel(r.layer)+typeLine+'<br>'+(r.loc||'-')+'<br>'+(r.gff||'')+(r.extra?('<br><span style="color:#64748b">'+r.extra+'</span>'):'')
+    +'<br><a href="'+navUrl+'" target="_blank" rel="noopener" class="map-nav-btn">🚗 นำทางไปจุดนี้</a></div>';
 }
 
 function mapPassFilter(r){
