@@ -465,6 +465,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="nav-item" onclick="showPanel('pbo',this)" data-panel="pbo">
       <span class="nav-icon">📋</span><span>รายงาน ผบอ.</span>
     </div>
+    <div class="nav-item" onclick="showPanel('frtuava',this)" data-panel="frtuava">
+      <span class="nav-icon">🛰️</span><span>สถานะ FRTU</span>
+    </div>
   </nav>
   <div class="sidebar-footer">⚡ PEA-S1 ระบบจำหน่าย &nbsp;|&nbsp; <span id="sbDate"></span></div>
 </div>
@@ -724,6 +727,14 @@ document.addEventListener('DOMContentLoaded', function() {
       referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
   </div>
 
+  <div class="tab-panel" id="panel-frtuava" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0;position:relative">
+    <div style="position:absolute;top:10px;right:16px;z-index:5">
+      <a href="https://pea-ava.up.railway.app/login" target="_blank" rel="noopener" style="font-size:0.75rem;color:#FFB347;background:rgba(13,10,30,0.7);padding:5px 12px;border-radius:14px;text-decoration:none;border:1px solid rgba(255,130,0,0.4)">↗ เปิดในแท็บใหม่</a>
+    </div>
+    <iframe id="iframe-frtuava" title="สถานะ FRTU" style="width:100%;height:100%;border:none;display:block;background:#0d0a1e"
+      referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
+  </div>
+
   </div><!-- end .content -->
 </div><!-- end .main-wrap -->
 
@@ -738,9 +749,10 @@ const panelTitles = {
   capa:['Capa Unit','ติดตามการติดตั้ง Capacitor Bank'],
   frtu:['ติดตามแก้ไข FRTU','รายการ FRTU Down ที่ต้องแก้ไข'],
   pm:['แผนบำรุงรักษา','แผนบำรุงรักษาอุปกรณ์ประจำปี 2569'],
-  pbo:['รายงาน ผบอ.','แดชบอร์ดรายงานการทำงานแผนก ผบอ']
+  pbo:['รายงาน ผบอ.','แดชบอร์ดรายงานการทำงานแผนก ผบอ'],
+  frtuava:['สถานะ FRTU','ระบบติดตามสถานะ FRTU']
 };
-const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/" };
+const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/", frtuava: "https://pea-ava.up.railway.app/login" };
 
 // ===== Sidebar =====
 function toggleSidebar(){
