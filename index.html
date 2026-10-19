@@ -1558,7 +1558,7 @@ const PM_D = {"gantt":[{"province":"กฟจ.ระนอง","months":[2,3],"s
 const PM_MONTHS_S = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const PM_MONTHS_F = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const PM_COLORS = PM_D.colors;
-const PM_CUR_M = PM_D.current_month;
+const PM_CUR_M = (new Date()).getMonth()+1; // เดือนปัจจุบันจริง ไม่ใช้ค่าที่ฝังไว้ตอนดึงข้อมูล
 let pmActiveMonth = null;
 
 function initPM(){
