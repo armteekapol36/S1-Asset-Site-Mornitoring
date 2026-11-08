@@ -9,10 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 
 <script>
 // Dark theme defaults for Chart.js
@@ -152,6 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
   .map-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px}
   .map-layer-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;font-weight:600;border:1.5px solid rgba(255,255,255,0.15);color:#cbd5e1;transition:all 0.15s;user-select:none}
   .map-layer-chip input{accent-color:#FF8200;cursor:pointer}
+  .chip-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .map-layer-chip.on-recloser{border-color:#22d3ee;color:#67e8f9}
   .map-layer-chip.on-frtu{border-color:#a78bfa;color:#ddd6fe}
   .map-layer-chip.on-lbs{border-color:#fb7185;color:#fecdd3}
@@ -164,6 +162,24 @@ document.addEventListener('DOMContentLoaded', function() {
   #equipMap{height:560px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
   .map-legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .map-note{font-size:0.72rem;color:#8a84ad;margin-top:10px;line-height:1.6}
+  /* ตัวเลือกการไฟฟ้าแบบเลือกได้หลายแห่ง */
+  .mpick{position:relative;display:inline-block}
+  .mpick-btn{padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(13,10,30,0.6);color:#e2e8f0;font-size:0.82rem;font-family:inherit;cursor:pointer;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+  .mpick-btn.on{border-color:#FF8200;color:#FFB347}
+  .mpick-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:1200;width:280px;max-width:88vw;background:#1a1335;border:1px solid rgba(255,255,255,0.15);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);padding:10px}
+  .mpick-pop[hidden]{display:none}
+  .mpick-q{width:100%;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:rgba(13,10,30,0.7);color:#e2e8f0;font-size:0.8rem;font-family:inherit;outline:none;margin-bottom:8px}
+  .mpick-acts{display:flex;gap:6px;margin-bottom:8px}
+  .mpick-acts button{flex:1;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#cbd5e1;font-size:0.74rem;font-family:inherit;cursor:pointer}
+  .mpick-acts button:hover{background:rgba(255,130,0,0.2);color:#FFB347}
+  .mpick-list{max-height:260px;overflow-y:auto}
+  .mpick-item{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;font-size:0.8rem;color:#e2e8f0;cursor:pointer}
+  .mpick-item:hover{background:rgba(255,255,255,0.06)}
+  .mpick-item input{accent-color:#FF8200;width:15px;height:15px;cursor:pointer}
+  .mpick-item .cnt{margin-left:auto;color:#64748b;font-size:0.72rem}
+  #panel-frtuava .map-kpi[data-kstate]{cursor:pointer;transition:transform .12s,box-shadow .12s}
+  #panel-frtuava .map-kpi[data-kstate]:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  #frtu2TblBody td{vertical-align:top}
   .map-table-wrap{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-top:16px}
   .map-table-wrap h3{font-size:0.9rem;color:#e2e8f0;margin-bottom:10px}
   .map-table-wrap table{font-size:0.78rem}
@@ -250,7 +266,40 @@ document.addEventListener('DOMContentLoaded', function() {
     .topbar{padding:9px 12px;gap:6px 8px}
     .topbar-title h1{font-size:1rem}
     .topbar-title p{font-size:0.72rem}
-    .kpi-card,.chart-card,.map-kpi{min-width:100%}
+    .kpi-card,.chart-card{min-width:100%}
+    .hide-sm{display:none !important}
+  }
+  /* ===== มือถือ: แผนที่/การ์ด/ปุ่ม ให้กดง่าย ===== */
+  @media(max-width:768px){
+    .topbar-brand{display:none !important}
+    .map-kpi-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+    .map-kpi{min-width:0;padding:9px 10px;border-left-width:3px;border-radius:10px}
+    .map-kpi-label{font-size:0.62rem;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .map-kpi-value{font-size:1.2rem}
+    .map-kpi-sub{display:none}
+    .map-toolbar{gap:8px;padding:10px;margin-bottom:10px}
+    .chip-row{gap:6px;overflow-x:auto;flex-wrap:nowrap !important;flex:1 1 100%;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .chip-row::-webkit-scrollbar{display:none}
+    .chip-row .map-layer-chip{flex:0 0 auto;white-space:nowrap}
+    .map-layer-chip{padding:8px 12px;min-height:40px;font-size:0.82rem}
+    .map-layer-chip input{width:18px;height:18px}
+    .map-search{flex:1 1 100%;min-height:42px;font-size:16px;order:3}
+    .map-toolbar .mpick{order:1}
+    .map-toolbar .map-toggle-btn{order:2}   /* 16px = iPhone ไม่ซูมหน้าจอเองตอนแตะช่องค้นหา */
+    .mpick{flex:1 1 auto}
+    .mpick-btn{min-height:42px;width:100%;max-width:none;font-size:0.85rem;text-align:left}
+    .mpick-q{font-size:16px;min-height:40px}
+    .mpick-item{padding:10px 8px;font-size:0.88rem}
+    .mpick-item input{width:20px;height:20px}
+    .mpick-acts button{min-height:36px}
+    .map-toggle-btn{min-height:42px}
+    #equipMap,#frtuStatusMap{height:64vh;min-height:360px}
+    #panel-frtuava{padding-top:0}
+    .frtu-connect-btn{position:static;display:flex;width:max-content;margin:0 0 10px auto;padding:8px 14px}
+    .leaflet-touch .leaflet-bar a{width:40px;height:40px;line-height:40px;font-size:20px}
+    .leaflet-popup-content{font-size:14px;line-height:1.6}
+    .map-nav-btn{display:inline-block;padding:10px 14px !important;margin-top:6px}
+    #frtu2TblBody td,.map-table-wrap td{padding:10px 8px}
   }
 
 /* ===== PM Timeline CSS ===== */
@@ -547,12 +596,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <h1 id="topbarTitle">แนะนำทีมงาน</h1>
       <p id="topbarSub">แผนกบำรุงรักษาอุปกรณ์ระบบไฟฟ้า</p>
     </div>
-    <div style="background:rgba(255,130,0,0.2);border:1px solid rgba(255,130,0,0.45);border-radius:8px;padding:5px 12px;font-size:0.75rem;font-weight:700;color:#FFB347;letter-spacing:0.5px;white-space:nowrap">⚡ PEA-S1 &nbsp;|&nbsp; ระบบจำหน่าย</div>
+    <div class="topbar-brand" style="background:rgba(255,130,0,0.2);border:1px solid rgba(255,130,0,0.45);border-radius:8px;padding:5px 12px;font-size:0.75rem;font-weight:700;color:#FFB347;letter-spacing:0.5px;white-space:nowrap">⚡ PEA-S1 &nbsp;|&nbsp; ระบบจำหน่าย</div>
     <div id="liveStatusInd" style="font-size:0.72rem;font-weight:700;color:#FFB347;white-space:nowrap;padding:5px 10px;background:rgba(255,255,255,0.08);border-radius:14px">🔄 กำลังซิงค์...</div>
     <button class="upload-btn" onclick="liveRefreshFromSheets(true)" title="ดึงข้อมูลล่าสุดจาก Google Sheets">🔄 รีเฟรชสด</button>
-    <button class="upload-btn" onclick="document.getElementById('excelFileInput').click()">📂 อัปโหลด Excel</button>
+    <button class="upload-btn hide-sm" id="excelUploadBtn" onclick="document.getElementById('excelFileInput').click()">📂 อัปโหลด Excel</button>
     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(this)">
-    <div class="date-badge" id="currentDate"></div>
+    <div class="date-badge hide-sm" id="currentDate"></div>
   </div>
 
   <div class="content">
@@ -740,7 +789,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="chart-row">
       <div class="chart-card">
         <h3>จำนวน FRTU Down แยกตาม การไฟฟ้า</h3>
-        <div class="chart-hint">👆 คลิกแท่งเพื่อกรองการไฟฟ้า</div>
+        <div class="chart-hint">👆 คลิกแท่งเพื่อเลือก/ยกเลิกการไฟฟ้า (เลือกได้หลายแห่ง)</div>
         <canvas id="frtuBarChart" height="200"></canvas>
       </div>
     </div>
@@ -748,7 +797,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <h3>รายการ FRTU Down ที่ต้องแก้ไข</h3>
       <div class="table-controls">
         <input class="search-input" id="frtu-search" placeholder="🔍 ค้นหา รหัส / สถานที่..." oninput="filterFrtu()">
-        <select class="filter-select" id="frtu-filter-gff" onchange="filterFrtu()"><option value="">การไฟฟ้า: ทั้งหมด</option></select>
+        <div class="mpick" id="frtu-filter-gff"></div>
       </div>
       <div class="table-wrap">
         <table>
@@ -801,11 +850,12 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <div class="map-toolbar">
-      <label class="map-layer-chip on-recloser"><input type="checkbox" checked data-layer="recloser"><span class="map-legend-dot" style="background:#22d3ee"></span>Recloser</label>
+      <div class="chip-row"><label class="map-layer-chip on-recloser"><input type="checkbox" checked data-layer="recloser"><span class="map-legend-dot" style="background:#22d3ee"></span>Recloser</label>
       <label class="map-layer-chip on-frtu"><input type="checkbox" checked data-layer="frtu"><span class="map-legend-dot" style="background:#a78bfa"></span>FRTU</label>
       <label class="map-layer-chip on-lbs"><input type="checkbox" checked data-layer="lbs"><span class="map-legend-dot" style="background:#fb7185"></span>LBS 115kV</label>
-      <label class="map-layer-chip on-capa"><input type="checkbox" checked data-layer="capa"><span class="map-legend-dot" style="background:#34d399"></span>SW Capacitor</label>
-      <select class="map-select" id="mapGffSelect"><option value="">ทุกการไฟฟ้า</option></select>
+      <label class="map-layer-chip on-capa"><input type="checkbox" checked data-layer="capa"><span class="map-legend-dot" style="background:#34d399"></span>SW Capacitor</label></div>
+      
+      <div class="mpick" id="mapGffSelect"></div>
       <input type="text" class="map-search" id="mapSearchInput" placeholder="🔍 ค้นหารหัสอุปกรณ์/สถานที่ เช่น CPA01R-01 หรือ Fly">
       <button type="button" class="map-toggle-btn" id="mapLocateBtn" onclick="locateOnEquipMap(this)">📍 ตำแหน่งของฉัน</button>
     </div>
@@ -841,25 +891,39 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="tab-panel" id="panel-frtuava">
     <a href="https://pea-ava.up.railway.app/login" target="_blank" rel="noopener" class="frtu-connect-btn">↗ เชื่อมต่อสถานะ FRTU</a>
     <div class="map-kpi-row">
-      <div class="map-kpi"><div class="map-kpi-label">FRTU ทั้งหมด</div><div class="map-kpi-value" id="frtu2-total">-</div><div class="map-kpi-sub">รายการ</div></div>
-      <div class="map-kpi" style="border-left-color:#22c55e"><div class="map-kpi-label">Online</div><div class="map-kpi-value" id="frtu2-online">-</div><div class="map-kpi-sub">รายการ</div></div>
-      <div class="map-kpi" style="border-left-color:#ef4444"><div class="map-kpi-label">Offline</div><div class="map-kpi-value" id="frtu2-offline">-</div><div class="map-kpi-sub">รายการ</div></div>
-      <div class="map-kpi" style="border-left-color:#f59e0b"><div class="map-kpi-label">Connecting</div><div class="map-kpi-value" id="frtu2-connecting">-</div><div class="map-kpi-sub">รายการ</div></div>
-      <div class="map-kpi" style="border-left-color:#3b82f6"><div class="map-kpi-label">Initializing</div><div class="map-kpi-value" id="frtu2-initializing">-</div><div class="map-kpi-sub">รายการ</div></div>
+      <div class="map-kpi" data-kstate="all" title="คลิกเพื่อดูเฉพาะสถานะนี้"><div class="map-kpi-label">FRTU ทั้งหมด</div><div class="map-kpi-value" id="frtu2-total">-</div><div class="map-kpi-sub">รายการ</div></div>
+      <div class="map-kpi" style="border-left-color:#22c55e" data-kstate="Online" title="คลิกเพื่อดูเฉพาะสถานะนี้"><div class="map-kpi-label">Online</div><div class="map-kpi-value" id="frtu2-online">-</div><div class="map-kpi-sub">รายการ</div></div>
+      <div class="map-kpi" style="border-left-color:#ef4444" data-kstate="Offline" title="คลิกเพื่อดูเฉพาะสถานะนี้"><div class="map-kpi-label">Offline</div><div class="map-kpi-value" id="frtu2-offline">-</div><div class="map-kpi-sub">รายการ</div></div>
+      <div class="map-kpi" style="border-left-color:#f59e0b" data-kstate="Connecting" title="คลิกเพื่อดูเฉพาะสถานะนี้"><div class="map-kpi-label">Connecting</div><div class="map-kpi-value" id="frtu2-connecting">-</div><div class="map-kpi-sub">รายการ</div></div>
+      <div class="map-kpi" style="border-left-color:#3b82f6" data-kstate="Initializing" title="คลิกเพื่อดูเฉพาะสถานะนี้"><div class="map-kpi-label">Initializing</div><div class="map-kpi-value" id="frtu2-initializing">-</div><div class="map-kpi-sub">รายการ</div></div>
       <div class="map-kpi c-miss"><div class="map-kpi-label">ไม่มีพิกัด</div><div class="map-kpi-value" id="frtu2-miss">-</div><div class="map-kpi-sub">รายการ</div></div>
     </div>
     <div class="map-toolbar">
-      <label class="map-layer-chip" style="border-color:#22c55e;color:#86efac"><input type="checkbox" checked data-fstate="Online"><span class="map-legend-dot" style="background:#22c55e"></span>Online</label>
+      <div class="chip-row"><label class="map-layer-chip" style="border-color:#22c55e;color:#86efac"><input type="checkbox" checked data-fstate="Online"><span class="map-legend-dot" style="background:#22c55e"></span>Online</label>
       <label class="map-layer-chip" style="border-color:#ef4444;color:#fca5a5"><input type="checkbox" checked data-fstate="Offline"><span class="map-legend-dot" style="background:#ef4444"></span>Offline</label>
       <label class="map-layer-chip" style="border-color:#f59e0b;color:#fde68a"><input type="checkbox" checked data-fstate="Connecting"><span class="map-legend-dot" style="background:#f59e0b"></span>Connecting</label>
       <label class="map-layer-chip" style="border-color:#3b82f6;color:#93c5fd"><input type="checkbox" checked data-fstate="Initializing"><span class="map-legend-dot" style="background:#3b82f6"></span>Initializing</label>
-      <label class="map-layer-chip" style="border-color:#8b5cf6;color:#ddd6fe"><input type="checkbox" checked data-fstate="Telemetry Failure"><span class="map-legend-dot" style="background:#8b5cf6"></span>Telemetry Failure</label>
-      <select class="map-select" id="frtu2GffSelect"><option value="">ทุกการไฟฟ้า</option></select>
+      <label class="map-layer-chip" style="border-color:#8b5cf6;color:#ddd6fe"><input type="checkbox" checked data-fstate="Telemetry Failure"><span class="map-legend-dot" style="background:#8b5cf6"></span>Telemetry Failure</label></div>
+      
+      <div class="mpick" id="frtu2GffSelect"></div>
       <input type="text" class="map-search" id="frtu2SearchInput" placeholder="🔍 ค้นหารหัสอุปกรณ์/สถานที่ เช่น S1-RCS-0126 หรือ Fly">
       <button type="button" class="map-toggle-btn" id="frtu2LocateBtn" onclick="locateOnFrtuMap(this)">📍 ตำแหน่งของฉัน</button>
     </div>
     <div id="frtuStatusMap"></div>
-    <div class="map-note">📡 สถานะ Online/Offline/Connecting/Initializing/Telemetry Failure ของ FRTU/RCS/Recloser/AVR/LBS/VSP ทั้งหมด (ข้อมูล ณ วันที่ดึง — ยังไม่ซิงค์สดจาก Google Sheet) กดปุ่ม "↗ เชื่อมต่อสถานะ FRTU" มุมขวาบนเพื่อเปิดระบบ PEA-AVA ตัวจริงในแท็บใหม่</div>
+    <div class="map-note">📡 สถานะ Online/Offline/Connecting/Initializing/Telemetry Failure ของ FRTU/RCS/Recloser/AVR/LBS/VSP ทั้งหมด (ซิงค์สดจาก Google Sheets ทุกครั้งที่เปิดหน้า — อัปเดตโดยอัตโนมัติเมื่อหน้างานแก้ไขข้อมูลใน Google Sheet) กดปุ่ม "↗ เชื่อมต่อสถานะ FRTU" มุมขวาบนเพื่อเปิดระบบ PEA-AVA ตัวจริงในแท็บใหม่</div>
+    <div class="map-table-wrap">
+      <h3>⚠️ อุปกรณ์ที่ไม่ออนไลน์ (ตามตัวกรองด้านบน · เรียงจากไม่ออนไลน์นานสุด) — คลิกแถวเพื่อซูมไปที่จุด</h3>
+      <div class="table-controls" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="page-info" id="frtu2TblCount" style="margin:0">- รายการ</span>
+        <button type="button" class="map-toggle-btn" onclick="frtuExportCsv()">⬇️ ดาวน์โหลด CSV</button>
+      </div>
+      <div class="table-wrap" style="max-height:420px">
+        <table>
+          <thead><tr><th>รหัส</th><th>สถานะ</th><th>การไฟฟ้า</th><th>สถานที่</th><th>ไม่ออนไลน์ (วัน)</th><th>หมายเหตุ</th></tr></thead>
+          <tbody id="frtu2TblBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="tab-panel active" id="panel-about" style="background:#0d0a1e;border-radius:16px;padding:0;margin:-22px -24px;min-height:calc(100vh - 64px);color:#e2e8f0">
@@ -971,41 +1035,98 @@ function showPanel(id, el){
   }
   if(id==='map') initEquipMap();
   if(id==='frtuava') initFrtuMap();
+  // แผนที่ที่ถูกซ่อนแล้วเปิดกลับมา (หรือหมุนจอระหว่างซ่อน) ต้องคำนวณขนาดใหม่ ไม่งั้นแผนที่เป็นสีเทา/ไทล์ขาดๆ
+  setTimeout(()=>{ try{ if(id==='map'&&equipMapObj) equipMapObj.invalidateSize(); if(id==='frtuava'&&frtuMapObj) frtuMapObj.invalidateSize(); }catch(e){} },250);
   if(window.innerWidth<=768) closeSidebar();
 }
 
 // ===== Helpers =====
 function swapBadge(s){
-  if(s==='สับเปลี่ยนแล้ว') return '<span class="badge badge-green">'+s+'</span>';
-  if(s==='รอสับเปลี่ยน') return '<span class="badge badge-orange">'+s+'</span>';
-  return '<span class="badge badge-gray">'+s+'</span>';
+  if(s==='สับเปลี่ยนแล้ว') return '<span class="badge badge-green">'+escH(s)+'</span>';
+  if(s==='รอสับเปลี่ยน') return '<span class="badge badge-orange">'+escH(s)+'</span>';
+  return '<span class="badge badge-gray">'+escH(s)+'</span>';
 }
 function budgetBadge(s){
   if(!s) return '<span class="badge badge-gray">-</span>';
-  if(s.includes('ได้รับงบ')) return '<span class="badge badge-green">'+s+'</span>';
-  if(s.includes('รอ')) return '<span class="badge badge-orange">'+s+'</span>';
-  return '<span class="badge badge-blue">'+s+'</span>';
+  if(s.includes('ได้รับงบ')) return '<span class="badge badge-green">'+escH(s)+'</span>';
+  if(s.includes('รอ')) return '<span class="badge badge-orange">'+escH(s)+'</span>';
+  return '<span class="badge badge-blue">'+escH(s)+'</span>';
 }
 function jaBadge(s){
   if(!s) return '<span class="badge badge-gray">-</span>';
-  if(s.includes('ขึ้นทะเบียน')) return '<span class="badge badge-green">'+s+'</span>';
-  if(s.includes('ก่อสร้าง')) return '<span class="badge badge-orange">'+s+'</span>';
-  return '<span class="badge badge-blue">'+s+'</span>';
+  if(s.includes('ขึ้นทะเบียน')) return '<span class="badge badge-green">'+escH(s)+'</span>';
+  if(s.includes('ก่อสร้าง')) return '<span class="badge badge-orange">'+escH(s)+'</span>';
+  return '<span class="badge badge-blue">'+escH(s)+'</span>';
 }
 function capaBadge(s){
-  if(s==='ติดตั้งแล้ว') return '<span class="badge badge-green">'+s+'</span>';
-  if(s==='เบิกแล้ว') return '<span class="badge badge-blue">'+s+'</span>';
-  if(s==='ใช้งานอยู่') return '<span class="badge badge-teal">'+s+'</span>';
-  if(s==='ไม่ได้ใช้งาน') return '<span class="badge badge-red">'+s+'</span>';
-  return '<span class="badge badge-gray">'+s+'</span>';
+  if(s==='ติดตั้งแล้ว') return '<span class="badge badge-green">'+escH(s)+'</span>';
+  if(s==='เบิกแล้ว') return '<span class="badge badge-blue">'+escH(s)+'</span>';
+  if(s==='ใช้งานอยู่') return '<span class="badge badge-teal">'+escH(s)+'</span>';
+  if(s==='ไม่ได้ใช้งาน') return '<span class="badge badge-red">'+escH(s)+'</span>';
+  return '<span class="badge badge-gray">'+escH(s)+'</span>';
 }
 function jabudBadge(s){
   if(!s) return '<span class="badge badge-gray">-</span>';
-  if(s.includes('ได้รับ')) return '<span class="badge badge-green">'+s+'</span>';
-  if(s.includes('รอ')) return '<span class="badge badge-orange">'+s+'</span>';
-  return '<span class="badge badge-blue">'+s+'</span>';
+  if(s.includes('ได้รับ')) return '<span class="badge badge-green">'+escH(s)+'</span>';
+  if(s.includes('รอ')) return '<span class="badge badge-orange">'+escH(s)+'</span>';
+  return '<span class="badge badge-blue">'+escH(s)+'</span>';
 }
-function fmt(n){ return n===0?'0':n.toLocaleString('th-TH',{maximumFractionDigits:0}); }
+function fmt(n){ n=Number(n); if(!isFinite(n)) return '0'; return n===0?'0':n.toLocaleString('th-TH',{maximumFractionDigits:0}); }
+// กันข้อความจาก Google Sheets ที่มีอักขระ < > & " ทำให้ตาราง/ป๊อปอัปแสดงผลเพี้ยน
+function escH(v){ return (v===undefined||v===null)?'':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ===== ตัวเลือกแบบเลือกได้หลายรายการ (ใช้กับ "การไฟฟ้า") — ไม่เลือกเลย = ทั้งหมด =====
+const MPICKS={};
+function mpickCreate(hostId, allLabel, onChange){
+  const host=document.getElementById(hostId); if(!host) return null;
+  host.innerHTML='<button type="button" class="mpick-btn"></button>'
+    +'<div class="mpick-pop" hidden><input type="text" class="mpick-q" placeholder="🔍 พิมพ์ค้นหาการไฟฟ้า...">'
+    +'<div class="mpick-acts"><button type="button" data-a="all">เลือกทั้งหมดที่เห็น</button><button type="button" data-a="none">ล้างการเลือก</button></div>'
+    +'<div class="mpick-list"></div></div>';
+  const btn=host.querySelector('.mpick-btn'), pop=host.querySelector('.mpick-pop'),
+        q=host.querySelector('.mpick-q'), list=host.querySelector('.mpick-list');
+  const mp={sel:new Set(), items:[], counts:{}, host};
+  function label(){
+    const n=mp.sel.size;
+    btn.textContent=(n===0?allLabel:n===1?[...mp.sel][0]:('การไฟฟ้า '+n+' แห่ง'))+' ▾';
+    btn.classList.toggle('on',n>0);
+    btn.title=n?[...mp.sel].join(', '):'';
+  }
+  function draw(){
+    const k=q.value.trim().toLowerCase();
+    list.innerHTML=mp.items.filter(g=>!k||g.toLowerCase().includes(k)).map(g=>
+      '<label class="mpick-item"><input type="checkbox" value="'+escH(g)+'"'+(mp.sel.has(g)?' checked':'')+'><span>'+escH(g)+'</span>'
+      +(mp.counts[g]!=null?'<span class="cnt">'+(typeof mp.counts[g]==='number'?fmt(mp.counts[g]):escH(mp.counts[g]))+'</span>':'')+'</label>').join('')
+      || '<div style="color:#64748b;font-size:.78rem;padding:6px">ไม่พบ</div>';
+  }
+  function fire(){ label(); if(onChange) onChange(mp.sel); }
+  btn.addEventListener('click',(e)=>{ e.stopPropagation(); const open=pop.hidden; Object.values(MPICKS).forEach(o=>o&&o.close()); if(open){ pop.hidden=false; q.value=''; draw(); setTimeout(()=>{ if(window.innerWidth>768) q.focus(); },0);} });
+  pop.addEventListener('click',e=>e.stopPropagation());
+  q.addEventListener('input',draw);
+  list.addEventListener('change',(e)=>{ const cb=e.target; if(!cb||cb.type!=='checkbox') return; if(cb.checked) mp.sel.add(cb.value); else mp.sel.delete(cb.value); fire(); });
+  host.querySelector('.mpick-acts').addEventListener('click',(e)=>{
+    const a=e.target&&e.target.dataset&&e.target.dataset.a; if(!a) return;
+    const k=q.value.trim().toLowerCase();
+    if(a==='all') mp.items.filter(g=>!k||g.toLowerCase().includes(k)).forEach(g=>mp.sel.add(g)); else mp.sel.clear();
+    draw(); fire();
+  });
+  mp.close=()=>{ pop.hidden=true; };
+  // ตั้งรายการตัวเลือกใหม่ (คงค่าที่เลือกไว้ถ้ายังมีอยู่)
+  mp.setItems=(items,counts)=>{
+    mp.items=[...new Set(items.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+    mp.counts=counts||{};
+    [...mp.sel].forEach(g=>{ if(!mp.items.includes(g)) mp.sel.delete(g); });
+    label(); if(!pop.hidden) draw();
+  };
+  mp.toggle=(g)=>{ if(mp.sel.has(g)) mp.sel.delete(g); else mp.sel.add(g); if(!pop.hidden) draw(); fire(); };
+  mp.clear=()=>{ mp.sel.clear(); label(); if(!pop.hidden) draw(); };
+  mp.pass=(g)=>mp.sel.size===0||mp.sel.has(g);
+  label();
+  MPICKS[hostId]=mp;
+  return mp;
+}
+document.addEventListener('click',()=>{ Object.values(MPICKS).forEach(o=>o&&o.close()); });
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') Object.values(MPICKS).forEach(o=>o&&o.close()); });
 function populateSelect(selId, items, prefix){
   const s=document.getElementById(selId);
   items.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=prefix+': '+v; s.appendChild(o); });
@@ -1181,9 +1302,9 @@ function filterSwap(){
     return true;
   });
   let html=''; rows.forEach((r,i)=>{
-    html+='<tr><td>'+r.TYPE+'</td><td>'+r.รหัสอุปกรณ์+'</td><td>'+r.สถานที่ติดตั้ง+'</td>';
-    html+='<td>'+r.พื้นที่การไฟฟ้า+'</td><td>'+r.จังหวัด+'</td><td>'+r.ใช้งบ+'</td>';
-    html+='<td>'+budgetBadge(r.สถานะ)+'</td><td>'+(r.สถานะงาน||'-')+'</td>';
+    html+='<tr><td>'+escH(r.TYPE)+'</td><td>'+escH(r.รหัสอุปกรณ์)+'</td><td>'+escH(r.สถานที่ติดตั้ง)+'</td>';
+    html+='<td>'+escH(r.พื้นที่การไฟฟ้า)+'</td><td>'+escH(r.จังหวัด)+'</td><td>'+escH(r.ใช้งบ)+'</td>';
+    html+='<td>'+budgetBadge(r.สถานะ)+'</td><td>'+escH((r.สถานะงาน||'-'))+'</td>';
     html+='<td class="editable-cell" onclick="editSwapStatus('+DATA.swap.table.indexOf(r)+',this)">'+swapBadge(r.กลุ่มสถานะ)+'</td></tr>';
   });
   document.getElementById('swapTableBody').innerHTML=html;
@@ -1397,9 +1518,9 @@ function filterJa(){
     return true;
   });
   let html=''; rows.forEach(r=>{
-    html+='<tr><td>'+r.กฟฟ+'</td><td>'+r.รหัสอุปกรณ์+'</td><td>'+r.สถานที่+'</td>';
-    html+='<td>'+r.TYPE+'</td><td>'+r.ใบสั่ง+'</td><td>'+jaBadge(r.สถานะ)+'</td>';
-    html+='<td>'+r.SAP+'</td><td style="text-align:right">'+(r.งบประมาณ?r.งบประมาณ.toLocaleString('th-TH',{maximumFractionDigits:2}):'-')+'</td>';
+    html+='<tr><td>'+escH(r.กฟฟ)+'</td><td>'+escH(r.รหัสอุปกรณ์)+'</td><td>'+escH(r.สถานที่)+'</td>';
+    html+='<td>'+escH(r.TYPE)+'</td><td>'+escH(r.ใบสั่ง)+'</td><td>'+jaBadge(r.สถานะ)+'</td>';
+    html+='<td>'+escH(r.SAP)+'</td><td style="text-align:right">'+(r.งบประมาณ?r.งบประมาณ.toLocaleString('th-TH',{maximumFractionDigits:2}):'-')+'</td>';
     html+='<td class="editable-cell" onclick="editJaBudgetStatus('+DATA.ja2900.table.indexOf(r)+',this)">'+jabudBadge(r.สถานะงบประมาณ)+'</td></tr>';
   });
   document.getElementById('jaTableBody').innerHTML=html;
@@ -1492,9 +1613,9 @@ function filterCapa(){
     return true;
   });
   let html=''; rows.forEach(r=>{
-    html+='<tr><td>'+r.ระดับแรงดัน+'</td><td>'+r.รหัสสั่งการ+'</td><td>'+r.สถานที่+'</td>';
-    html+='<td>'+r.กฟฟ+'</td><td>'+r.คลัง+'</td><td>'+fmt(r.Total_Kvar)+'</td><td>'+fmt(r.จำนวน_Unit)+'</td>';
-    html+='<td>'+r.รายละเอียด+'</td>';
+    html+='<tr><td>'+escH(r.ระดับแรงดัน)+'</td><td>'+escH(r.รหัสสั่งการ)+'</td><td>'+escH(r.สถานที่)+'</td>';
+    html+='<td>'+escH(r.กฟฟ)+'</td><td>'+escH(r.คลัง)+'</td><td>'+fmt(r.Total_Kvar)+'</td><td>'+fmt(r.จำนวน_Unit)+'</td>';
+    html+='<td>'+escH(r.รายละเอียด)+'</td>';
     html+='<td class="editable-cell" onclick="editCapaStatus('+DATA.capa.table.indexOf(r)+',this)">'+capaBadge(r.กลุ่มสถานะ)+'</td></tr>';
   });
   document.getElementById('capaTableBody').innerHTML=html;
@@ -1513,8 +1634,8 @@ function initFRTU(){
   const d=DATA.frtu;
   document.getElementById('fr-total').textContent=fmt(d.total);
   document.getElementById('fr-areas').textContent=fmt(d.gff_list.length);
-  clearSelect('frtu-filter-gff');
-  populateSelect('frtu-filter-gff', d.gff_list, 'การไฟฟ้า');
+  if(!MPICKS['frtu-filter-gff']) mpickCreate('frtu-filter-gff','การไฟฟ้า: ทั้งหมด',()=>{ filterFrtu(); frtuBarRecolor(); });
+  MPICKS['frtu-filter-gff'].setItems(d.gff_list, d.by_gff);
   buildFrtuChart(); filterFrtu();
 }
 function buildFrtuChart(){
@@ -1523,30 +1644,38 @@ function buildFrtuChart(){
   const keys=Object.keys(d.by_gff).sort((a,b)=>d.by_gff[b]-d.by_gff[a]);
   charts['frtuBar']=new Chart(document.getElementById('frtuBarChart'),{
     type:'bar',
-    data:{labels:keys,datasets:[{label:'จำนวน FRTU Down',data:keys.map(k=>d.by_gff[k]),backgroundColor:'#f87171',borderRadius:5}]},
+    data:{labels:keys,datasets:[{label:'จำนวน FRTU Down',data:keys.map(k=>d.by_gff[k]),backgroundColor:frtuBarColors(keys),borderRadius:5}]},
     options:{
       scales:{y:{beginAtZero:true}},
       plugins:{legend:{display:false}},
       onClick:(e,els)=>{
         if(!els.length)return;
         const label=keys[els[0].index];
-        document.getElementById('frtu-filter-gff').value=label;
-        filterFrtu();
+        if(MPICKS['frtu-filter-gff']) MPICKS['frtu-filter-gff'].toggle(label);
       }
     }
   });
 }
+// แท่งที่ถูกเลือกเป็นสีแดงเข้ม แท่งที่ไม่ได้เลือกจางลง (ถ้ายังไม่เลือกอะไร = สีปกติทั้งหมด)
+function frtuBarColors(keys){
+  const mp=MPICKS['frtu-filter-gff'];
+  return keys.map(k=>(!mp||mp.sel.size===0)?'#f87171':(mp.sel.has(k)?'#ef4444':'rgba(248,113,113,0.25)'));
+}
+function frtuBarRecolor(){
+  const c=charts['frtuBar']; if(!c) return;
+  c.data.datasets[0].backgroundColor=frtuBarColors(c.data.labels); c.update();
+}
 function filterFrtu(){
   const q=(document.getElementById('frtu-search').value||'').toLowerCase();
-  const gff=document.getElementById('frtu-filter-gff').value;
+  const mp=MPICKS['frtu-filter-gff'];
   let rows=DATA.frtu.table.filter(r=>{
-    if(gff&&r.การไฟฟ้า!==gff)return false;
+    if(mp&&!mp.pass(r.การไฟฟ้า))return false;
     if(q){const s=(r.รหัสสั่งการ+' '+r.สถานที่+' '+r.การไฟฟ้า).toLowerCase();if(!s.includes(q))return false;}
     return true;
   });
   let html=''; rows.forEach((r,i)=>{
-    html+='<tr><td>'+(i+1)+'</td><td>'+r.การไฟฟ้า+'</td><td>'+r.รหัสสั่งการ+'</td>';
-    html+='<td>'+r.สถานที่+'</td><td>'+r.รายละเอียด+'</td></tr>';
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(r.การไฟฟ้า)+'</td><td>'+escH(r.รหัสสั่งการ)+'</td>';
+    html+='<td>'+escH(r.สถานที่)+'</td><td>'+escH(r.รายละเอียด)+'</td></tr>';
   });
   document.getElementById('frtuTableBody').innerHTML=html;
   document.getElementById('frtu-page-info').textContent='แสดง '+rows.length+' / '+DATA.frtu.total+' รายการ';
@@ -1701,6 +1830,17 @@ const GSHEET_ID = "1UI86hfClB7_JWgo-2GJe5PmmHwMmxRhIoXCcE22G_3E";
 function gvizUrl(sheetName){
   return "https://docs.google.com/spreadsheets/d/"+GSHEET_ID+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(sheetName);
 }
+// ไฟล์ "FRTU / FRTU DOWN" (ใช้ทำแผนที่ "สถานะ FRTU")
+const GSHEET_ID2 = "1PEAD-8zv7gFpL4mNqrXCyVDTkIT8mepkDT4owXXrQz8";
+// แท็บ "Down ..." ถูกเจ้าหน้าที่แก้ไขข้อมูล "ในแท็บเดิม" ทุกวันจันทร์ แล้วแค่เปลี่ยนชื่อแท็บเป็นวันที่นั้นๆ
+// (ไม่ได้สร้างแท็บใหม่) — จึงต้องดึงด้วย gid (คงที่ตลอด) แทนชื่อแท็บ (เปลี่ยนทุกสัปดาห์) ไม่งั้นจะดึงพลาด
+const FRTU_DOWN_GID = "1735509463";
+function gvizUrl2(sheetName){
+  return "https://docs.google.com/spreadsheets/d/"+GSHEET_ID2+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(sheetName);
+}
+function gvizUrl2ByGid(gid){
+  return "https://docs.google.com/spreadsheets/d/"+GSHEET_ID2+"/gviz/tq?tqx=out:csv&gid="+gid;
+}
 
 // RFC4180-ish CSV parser -> array of row-arrays (handles quoted fields, embedded commas/newlines, "" escaped quotes)
 function csvParse(text){
@@ -1820,32 +1960,157 @@ function gvParseFRTU(rows){
   return{total:table.length,by_gff,gff_list:[...gff_set].sort(),table};
 }
 
-async function gvFetchSheet(name){
-  const res=await fetch(gvizUrl(name),{cache:'no-store'});
-  if(!res.ok) throw new Error('fetch failed: '+name+' ('+res.status+')');
-  const text=await res.text();
-  return csvParse(text);
+// ---- ชีต38 (ไฟล์ FRTU/FRTU DOWN): Name,State,Alias,สถานที่,GIS TAG,การไฟฟ้า — baseline สถานะของอุปกรณ์ทุกตัว
+function gvParseFrtuBase(rows){
+  const h=gvFindHeaderRow(rows,['State','Alias']);
+  const map={};
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i];
+    const code=gvS(r[0]); if(!code) continue;
+    map[code]={state:gvS(r[1]),alias:gvS(r[2]),loc:gvS(r[3]),gff:gvS(r[5])};
+  }
+  return map;
+}
+// ---- แท็บ "Down ..." (ไฟล์ FRTU/FRTU DOWN, ดึงด้วย gid): Name,State,Failure time,Success time,Address,Alias,Description,การไฟฟ้า,สถานที่,รายละเอียด
+function gvParseThaiDate(s){
+  s=gvS(s); if(!s) return null;
+  const d0=s.split(' ')[0];
+  let m=d0.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);           // 27/3/2026 (รูปแบบของชีตนี้)
+  if(m){ let y=+m[3]; if(y>2400) y-=543; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  m=d0.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);                   // 2026-03-27
+  if(m){ let y=+m[1]; if(y>2400) y-=543; return y+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'); }
+  return null;
+}
+// ปรับชื่อสถานะให้ตรงกับ 5 สถานะที่แผนที่รู้จัก (กันเว้นวรรค/ตัวพิมพ์เล็กใหญ่ต่างกัน ที่ทำให้จุดหายจากแผนที่)
+function frtuNormState(st){
+  st=gvS(st); if(!st) return '';
+  const k=st.toLowerCase().replace(/\s+/g,' ');
+  const hit=FRTU_STATES.find(x=>x.toLowerCase()===k);
+  return hit||st;
+}
+function gvParseFrtuDown(rows){
+  const h=gvFindHeaderRow(rows,['State','Failure time']);
+  const map={};
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i];
+    const code=gvS(r[0]); if(!code) continue;
+    const note=gvS(r[9]);
+    map[code]={state:gvS(r[1]),since:gvParseThaiDate(r[2]),loc:gvS(r[8]),gff:gvS(r[7]),note:note||null};
+  }
+  return map;
+}
+// ผสานเข้ากับ FRTU_STATUS (คงพิกัด lat/lng เดิมไว้ — ไม่ได้ซิงค์สดเพราะแทบไม่เปลี่ยน): ชีต38 เป็น baseline, แท็บ Down ทับอีกชั้นสำหรับตัวที่ไม่ออนไลน์
+// baseMap / downMap = null แปลว่าดึงชีตนั้นไม่สำเร็จ -> คงค่าเดิมของส่วนนั้นไว้ ไม่ล้างทิ้ง
+function mergeFrtuStatusLive(baseMap, downMap){
+  if(typeof FRTU_STATUS==='undefined'||!FRTU_STATUS) return;
+  FRTU_STATUS.forEach(rec=>{
+    if(downMap){ delete rec.since; delete rec.note; }
+    const base=baseMap&&baseMap[rec.code];
+    if(base){
+      const bs=frtuNormState(base.state);
+      if(bs) rec.state=bs;
+      if(base.loc) rec.loc=base.loc;
+      if(base.gff) rec.gff=base.gff;
+      if(base.alias) rec.alias=base.alias;
+    }
+    const down=downMap&&downMap[rec.code];
+    if(down){
+      const ds=frtuNormState(down.state);
+      if(ds) rec.state=ds;
+      if(down.loc) rec.loc=down.loc;
+      if(down.gff) rec.gff=down.gff;
+      if(down.since) rec.since=down.since;
+      if(down.note) rec.note=down.note;
+    }
+  });
 }
 
+// ดึง CSV + ตรวจว่าได้ CSV จริง (บางครั้ง Google ตอบ 200 แต่เป็นหน้า HTML/ข้อความ error ซึ่งเดิมจะถูกอ่านเป็นข้อมูลขยะ)
+// ดึงสำเร็จ -> เก็บสำเนาไว้ในเครื่อง; ดึงไม่ได้ (เน็ตหลุด/Google ล่ม) -> ใช้สำเนาล่าสุดแทนข้อมูลที่ฝังมากับไฟล์ (ซึ่งเก่ากว่า)
+let gvCacheUsed=[];
+async function gvFetchUrl(url){
+  const key='gvc:'+url;
+  try{
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const text=await res.text();
+    const head=text.slice(0,300).trim();
+    if(!text.trim() || head.startsWith('<') || /google\.visualization\.Query|<!DOCTYPE|<html/i.test(head)) throw new Error('not CSV');
+    try{ localStorage.setItem(key, JSON.stringify({t:Date.now(),text})); }catch(e){}
+    return csvParse(text);
+  }catch(err){
+    let c=null; try{ c=JSON.parse(localStorage.getItem(key)||'null'); }catch(e){}
+    if(c&&c.text){ gvCacheUsed.push(c.t); return csvParse(c.text); }
+    throw err;
+  }
+}
+async function gvFetchSheet(name){ return gvFetchUrl(gvizUrl(name)); }
+
+let liveSyncBusy=false, liveSyncLastAt=0;
 async function liveRefreshFromSheets(showUI){
+  if(liveSyncBusy) return;   // กันกดปุ่มรีเฟรชซ้ำรัวๆ ระหว่างกำลังดึง
+  liveSyncBusy=true; liveSyncLastAt=Date.now();
+  try{ await liveRefreshFromSheetsInner(showUI); } finally { liveSyncBusy=false; }
+}
+async function liveRefreshFromSheetsInner(showUI){
   const ind=document.getElementById('liveStatusInd');
   if(ind){ind.innerHTML='🔄 กำลังซิงค์...';ind.style.color='#FFB347';}
   try{
-    const [swapRows,jaRows,capaRows,frtuRows]=await Promise.all([
+    // ดึงแต่ละชีตแยกกัน — ชีตไหนพังก็ไม่ลากชีตอื่นให้พังตาม (เดิมใช้ Promise.all พังหมดทั้งชุด)
+    const jobs=[
       gvFetchSheet('ติดตามสับเปลี่ยน'),
       gvFetchSheet('งบ JA2900'),
       gvFetchSheet('ติดตาม capa unit'),
       gvFetchSheet('ติดตาม FRTU Down'),
-    ]);
-    DATA.swap=gvParseSwap(swapRows);
-    DATA.ja2900=gvParseJA(jaRows);
-    DATA.capa=gvParseCapa(capaRows);
-    DATA.frtu=gvParseFRTU(frtuRows);
-    refreshAll();
+      gvFetchUrl(gvizUrl2('ชีต38')),
+      gvFetchUrl(gvizUrl2ByGid(FRTU_DOWN_GID)),
+    ];
+    gvCacheUsed=[];
+    const res=await Promise.allSettled(jobs);
+    const val=i=>res[i].status==='fulfilled'?res[i].value:null;
+    const failed=[]; const label=['สับเปลี่ยน','JA2900','Capa','FRTU Down','ชีต38','แท็บ Down'];
+    const safe=(i,fn)=>{ const rows=val(i); if(!rows){failed.push(label[i]);return;} try{fn(rows);}catch(e){console.error(label[i],e);failed.push(label[i]);} };
+    // กันกรณีมีคนกด "ตัวกรอง" ค้างไว้ในชีตต้นทาง: Google จะส่งมาเฉพาะแถวที่มองเห็น ทำให้แดชบอร์ดเหลือไม่กี่แถว
+    // ถ้าได้แถวน้อยกว่าครึ่งของชุดเดิมแบบผิดปกติ -> ไม่เอามาทับ ใช้ชุดเดิมต่อ แล้วเตือนที่มุมบน
+    const filtered=[];
+    const accept=(i,key,sheet,d)=>{
+      if(!d.total){ failed.push(label[i]); return; }
+      const prev=DATA[key];
+      if(prev && prev.total>=10 && d.total<prev.total*0.5){
+        filtered.push(label[i]+' (ได้ '+d.total+' จาก '+prev.total+' แถว)');
+        try{ localStorage.removeItem('gvc:'+gvizUrl(sheet)); }catch(e){}
+        return;
+      }
+      DATA[key]=d;
+    };
+    safe(0,rows=>accept(0,'swap','ติดตามสับเปลี่ยน',gvParseSwap(rows)));
+    safe(1,rows=>accept(1,'ja2900','งบ JA2900',gvParseJA(rows)));
+    safe(2,rows=>accept(2,'capa','ติดตาม capa unit',gvParseCapa(rows)));
+    safe(3,rows=>{ DATA.frtu=gvParseFRTU(rows); });
+    // สถานะ FRTU: กันกรณีชีตกำลังถูกแก้/ว่างชั่วคราว (ได้แถวน้อยผิดปกติ) จะไม่เอาไปทับข้อมูลเดิม
+    let baseMap=null, downMap=null;
+    safe(4,rows=>{ const m=gvParseFrtuBase(rows); if(Object.keys(m).length>=100) baseMap=m; else failed.push(label[4]); });
+    safe(5,rows=>{ const m=gvParseFrtuDown(rows); if(Object.keys(m).length>0) downMap=m; else failed.push(label[5]); });
+    if(baseMap||downMap){
+      mergeFrtuStatusLive(baseMap, downMap);
+      if(frtuMapInited){ try{ frtuBuildGffOptions(); frtuFillKPIs(); frtuRenderMarkers(); }catch(e){console.error(e);} }
+    }
+    try{ refreshAll(); }catch(e){ console.error('refreshAll',e); }
     const now=new Date();
     const t=now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-    if(ind){ind.innerHTML='🟢 ข้อมูลสด &middot; อัพเดท '+t;ind.style.color='#4ade80';}
-    localStorage.removeItem && null;
+    if(ind){
+      if(filtered.length){
+        ind.innerHTML='🟡 ชีตต้นทางถูกกรองอยู่ &middot; ใช้ข้อมูลชุดก่อน';ind.style.color='#fbbf24';
+        ind.title='ชีต '+filtered.join(', ')+' มีคนเปิด "ตัวกรอง" ค้างไว้ Google จึงส่งมาเฉพาะแถวที่มองเห็น — ให้ปิดตัวกรองในชีต (หรือใช้ "มุมมองตัวกรอง" แทน) แล้วกดรีเฟรชสด';
+      }
+      else if(!failed.length && gvCacheUsed.length){
+        const ct=new Date(Math.min(...gvCacheUsed)).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+        ind.innerHTML='🟡 ออฟไลน์ &middot; ใช้ข้อมูลที่บันทึกไว้ '+ct;ind.style.color='#fbbf24';ind.title='เชื่อมต่อ Google Sheets ไม่ได้ จึงแสดงข้อมูลชุดล่าสุดที่เคยดึงสำเร็จ';
+      }
+      else if(!failed.length){ind.innerHTML='🟢 ข้อมูลสด &middot; อัพเดท '+t;ind.style.color='#4ade80';ind.title='';}
+      else if(failed.length<label.length){ind.innerHTML='🟡 ซิงค์บางส่วน &middot; '+t;ind.style.color='#fbbf24';ind.title='ดึงไม่สำเร็จ: '+failed.join(', ');}
+      else {ind.innerHTML='🔴 เชื่อมต่อไม่ได้ &middot; ใช้ข้อมูลล่าสุดที่บันทึกไว้';ind.style.color='#f87171';}
+    }
   }catch(err){
     console.error('Live sheet sync failed:',err);
     if(ind){ind.innerHTML='🔴 เชื่อมต่อไม่ได้ &middot; ใช้ข้อมูลล่าสุดที่บันทึกไว้';ind.style.color='#f87171';}
@@ -1856,7 +2121,7 @@ async function liveRefreshFromSheets(showUI){
 // ===== Excel Upload Handler =====
 function handleExcelUpload(input){
   const file=input.files[0]; if(!file)return;
-  const btn=document.querySelector('.upload-btn');
+  const btn=document.getElementById('excelUploadBtn'); // เดิมใช้ querySelector('.upload-btn') ไปโดนปุ่ม "รีเฟรชสด" แทน
   btn.innerHTML='⏳ กำลังโหลด...'; btn.disabled=true;
   const reader=new FileReader();
   reader.onload=function(e){
@@ -1882,10 +2147,10 @@ function handleExcelUpload(input){
         const sheetList=wb.SheetNames.join(', ');
         alert('⚠️ ไม่พบ Sheet: '+miss.join(', ')+'\n\nSheet ที่มีในไฟล์: '+sheetList+'\n\nSheet ที่ต้องการ:\n- ติดตามสับเปลี่ยน\n- งบ JA2900\n- ติดตาม Capa Unit\n- ติดตามแก้ไข FRTU');
       }
-      setTimeout(()=>{btn.innerHTML='📂 อัปเดต Excel';btn.style.background='';btn.disabled=false;},3000);
+      setTimeout(()=>{btn.innerHTML='📂 อัปโหลด Excel';btn.style.background='';btn.disabled=false;},3000);
     }catch(err){
       btn.innerHTML='❌ ผิดพลาด'; btn.style.background='rgba(239,68,68,0.3)';
-      setTimeout(()=>{btn.innerHTML='📂 อัปเดต Excel';btn.style.background='';btn.disabled=false;},3000);
+      setTimeout(()=>{btn.innerHTML='📂 อัปโหลด Excel';btn.style.background='';btn.disabled=false;},3000);
       console.error(err);
       alert('ไม่สามารถอ่านไฟล์ได้: '+err.message);
     }
@@ -2087,10 +2352,14 @@ function locateUserOnMap(mapObj, state, btn){
 function locateOnEquipMap(btn){ locateUserOnMap(equipMapObj, locateState.equip, btn); }
 function locateOnFrtuMap(btn){ locateUserOnMap(frtuMapObj, locateState.frtu, btn); }
 
+// จอสัมผัส: จุดใหญ่ขึ้น + ขยายระยะที่นับว่าแตะโดนจุด (นิ้วกดโดนง่ายขึ้นมาก)
+const IS_TOUCH=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||('ontouchstart' in window);
+const MARKER_R=IS_TOUCH?8:6;
+function mapRenderer(){ return L.canvas({padding:0.5,tolerance:IS_TOUCH?14:4}); }
 // ===== Equipment Map (พิกัดอุปกรณ์ PM 2569: Recloser / VT / FRTU / LBS 115kV) =====
 let equipMapObj=null, equipMapInited=false, MAP_ALL=null;
 const mapGroups={};
-let mapFilters={ layers:{recloser:true,frtu:true,lbs:true,capa:true}, gff:'', q:'' };
+let mapFilters={ layers:{recloser:true,frtu:true,lbs:true,capa:true}, q:'' };
 
 function mapColor(layer){ return {recloser:'#22d3ee',frtu:'#a78bfa',lbs:'#fb7185',capa:'#34d399'}[layer]||'#8B5CF6'; }
 function mapLabel(layer){ return {recloser:'Recloser (ผลทดสอบ)',frtu:'FRTU',lbs:'LBS 115 kV',capa:'SW Capacitor'}[layer]||layer; }
@@ -2121,13 +2390,13 @@ function mapFillKPIs(){
 function mapPopupHtml(r){
   const typeLine=(r.type && r.type!==mapLabel(r.layer))? (' · '+r.type) : '';
   const navUrl='https://www.google.com/maps/dir/?api=1&destination='+r.lat+','+r.lng;
-  return '<div class="map-pea-popup"><b>'+r.code+'</b><br>'+mapLabel(r.layer)+typeLine+'<br>'+(r.loc||'-')+'<br>'+(r.gff||'')+(r.extra?('<br><span style="color:#64748b">'+r.extra+'</span>'):'')
+  return '<div class="map-pea-popup"><b>'+escH(r.code)+'</b><br>'+mapLabel(r.layer)+escH(typeLine)+'<br>'+escH(r.loc||'-')+'<br>'+escH(r.gff||'')+(r.extra?('<br><span style="color:#64748b">'+escH(r.extra)+'</span>'):'')
     +'<br><a href="'+navUrl+'" target="_blank" rel="noopener" class="map-nav-btn">🚗 นำทางไปจุดนี้</a></div>';
 }
 
 function mapPassFilter(r){
   if(!mapFilters.layers[r.layer]) return false;
-  if(mapFilters.gff && r.gff!==mapFilters.gff) return false;
+  if(MPICKS['mapGffSelect'] && !MPICKS['mapGffSelect'].pass(r.gff)) return false;
   if(mapFilters.q){
     const hay=(r.code+' '+(r.loc||'')+' '+(r.gff||'')).toUpperCase();
     if(!hay.includes(mapFilters.q)) return false;
@@ -2142,7 +2411,7 @@ function mapRenderMarkers(){
     if(r.lat==null) return;
     if(!mapPassFilter(r)) return;
     matched.push(r);
-    const m=L.circleMarker([r.lat,r.lng],{radius:6,color:'#1e1b2e',weight:1,fillColor:mapColor(r.layer),fillOpacity:0.9});
+    const m=L.circleMarker([r.lat,r.lng],{radius:MARKER_R,color:'#1e1b2e',weight:1,fillColor:mapColor(r.layer),fillOpacity:0.9});
     m.bindPopup(mapPopupHtml(r));
     mapGroups[r.layer].addLayer(m);
   });
@@ -2151,6 +2420,12 @@ function mapRenderMarkers(){
   }
 }
 
+// เลือกการไฟฟ้าแล้ว ซูมแผนที่ให้พอดีกับจุดของการไฟฟ้าที่เลือก
+function mapFitToSelection(set){
+  if(!equipMapObj||!set||!set.size) return;
+  const pts=MAP_ALL.filter(r=>r.lat!=null&&mapPassFilter(r)).map(r=>[r.lat,r.lng]);
+  if(pts.length) equipMapObj.fitBounds(L.latLngBounds(pts),{maxZoom:13,padding:[30,30]});
+}
 function mapRenderTable(){
   const body=document.getElementById('mapTblBody');
   const filtered=MAP_ALL.filter(mapPassFilter);
@@ -2158,7 +2433,7 @@ function mapRenderTable(){
   const shown=filtered.slice(0,200);
   body.innerHTML=shown.map(r=>{
     const coord=r.lat!=null? (r.lat.toFixed(5)+', '+r.lng.toFixed(5)) : '<span style="color:#64748b">ไม่มีพิกัด</span>';
-    return '<tr><td>'+mapLabel(r.layer)+'</td><td>'+r.code+'</td><td>'+(r.type||'')+'</td><td>'+(r.loc||'')+'</td><td>'+(r.gff||'')+'</td><td>'+coord+'</td></tr>';
+    return '<tr><td>'+mapLabel(r.layer)+'</td><td>'+escH(r.code)+'</td><td>'+escH((r.type||''))+'</td><td>'+escH((r.loc||''))+'</td><td>'+escH((r.gff||''))+'</td><td>'+coord+'</td></tr>';
   }).join('');
   document.getElementById('mapTblMore').textContent=filtered.length>200? ('แสดง 200 จาก '+fmt(filtered.length)+' รายการ — ใช้ตัวกรอง/ค้นหาเพื่อดูรายการอื่น'):'';
 }
@@ -2169,12 +2444,11 @@ function initEquipMap(){
   MAP_ALL=mapNormalize();
   mapFillKPIs();
 
-  const gffSet=new Set();
-  MAP_ALL.forEach(r=>{ if(r.gff) gffSet.add(r.gff); });
-  const sel=document.getElementById('mapGffSelect');
-  [...gffSet].sort().forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o); });
+  const gffCnt={}; MAP_ALL.forEach(r=>{ if(r.gff) gffCnt[r.gff]=(gffCnt[r.gff]||0)+1; });
+  mpickCreate('mapGffSelect','ทุกการไฟฟ้า',(set)=>{ mapRenderMarkers(); mapRenderTable(); mapFitToSelection(set); });
+  MPICKS['mapGffSelect'].setItems(Object.keys(gffCnt), gffCnt);
 
-  equipMapObj=L.map('equipMap',{scrollWheelZoom:true, preferCanvas:true}).setView([10.3,99.3],7);
+  equipMapObj=L.map('equipMap',{scrollWheelZoom:true, preferCanvas:true, renderer:mapRenderer()}).setView([10.3,99.3],7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; OpenStreetMap contributors', maxZoom:18
   }).addTo(equipMapObj);
@@ -2193,7 +2467,6 @@ function initEquipMap(){
       mapRenderMarkers(); mapRenderTable();
     });
   });
-  sel.addEventListener('change', ()=>{ mapFilters.gff=sel.value; mapRenderMarkers(); mapRenderTable(); });
   document.getElementById('mapSearchInput').addEventListener('input', (e)=>{
     mapFilters.q=e.target.value.trim().toUpperCase();
     mapRenderMarkers(); mapRenderTable();
@@ -2206,7 +2479,7 @@ function initEquipMap(){
 let frtuMapObj=null, frtuMapInited=false;
 const FRTU_STATES=['Online','Offline','Connecting','Initializing','Telemetry Failure'];
 const frtuGroups={};
-let frtuFilters={ states:{'Online':true,'Offline':true,'Connecting':true,'Initializing':true,'Telemetry Failure':true}, gff:'', q:'' };
+let frtuFilters={ states:{'Online':true,'Offline':true,'Connecting':true,'Initializing':true,'Telemetry Failure':true}, q:'' };
 
 function frtuStateColor(state){ return {'Online':'#22c55e','Offline':'#ef4444','Connecting':'#f59e0b','Initializing':'#3b82f6','Telemetry Failure':'#8b5cf6'}[state]||'#94a3b8'; }
 
@@ -2222,18 +2495,26 @@ function frtuFillKPIs(){
   document.getElementById('frtu2-miss').textContent=fmt(miss);
 }
 
+// 'YYYY-MM-DD' -> 'DD/MM/พ.ศ. (N วัน)'
+function frtuSinceText(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');
+  if(!m) return escH(iso);
+  const d=new Date(+m[1],+m[2]-1,+m[3]);
+  const days=Math.floor((Date.now()-d.getTime())/86400000);
+  return m[3]+'/'+m[2]+'/'+(+m[1]+543)+(days>=0?' ('+fmt(days)+' วัน)':'');
+}
 function frtuPopupHtml(r){
   const navUrl='https://www.google.com/maps/dir/?api=1&destination='+r.lat+','+r.lng;
-  const sinceLine=r.since? ('<br><span style="color:#64748b">ไม่ออนไลน์ตั้งแต่: '+r.since+'</span>') : '';
-  const noteLine=r.note? ('<br><span style="color:#f59e0b">หมายเหตุ: '+r.note+'</span>') : '';
-  return '<div class="map-pea-popup"><b>'+r.code+'</b><br>'+r.state+' · '+(r.type||'')+'<br>'+(r.alias?('Alias: '+r.alias+'<br>'):'')+(r.loc||'-')+'<br>'+(r.gff||'')
+  const sinceLine=(r.since && r.state!=='Online')? ('<br><span style="color:#64748b">ไม่ออนไลน์ตั้งแต่: '+frtuSinceText(r.since)+'</span>') : '';
+  const noteLine=r.note? ('<br><span style="color:#f59e0b">หมายเหตุ: '+escH(r.note)+'</span>') : '';
+  return '<div class="map-pea-popup"><b>'+escH(r.code)+'</b><br><span style="color:'+frtuStateColor(r.state)+';font-weight:700">'+escH(r.state)+'</span> · '+escH(r.type||'')+'<br>'+(r.alias?('Alias: '+escH(r.alias)+'<br>'):'')+escH(r.loc||'-')+'<br>'+escH(r.gff||'')
     +sinceLine+noteLine
     +'<br><a href="'+navUrl+'" target="_blank" rel="noopener" class="map-nav-btn">🚗 นำทางไปจุดนี้</a></div>';
 }
 
 function frtuPassFilter(r){
   if(!frtuFilters.states[r.state]) return false;
-  if(frtuFilters.gff && r.gff!==frtuFilters.gff) return false;
+  if(MPICKS['frtu2GffSelect'] && !MPICKS['frtu2GffSelect'].pass(r.gff)) return false;
   if(frtuFilters.q){
     const q=frtuFilters.q;
     const hay=(r.code+' '+(r.alias||'')+' '+(r.loc||'')+' '+(r.gff||'')).toUpperCase();
@@ -2242,20 +2523,89 @@ function frtuPassFilter(r){
   return true;
 }
 
+let frtuMarkerByCode={};
+function frtuDaysDown(r){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(r.since||''); if(!m) return null;
+  const d=Math.floor((Date.now()-new Date(+m[1],+m[2]-1,+m[3]).getTime())/86400000);
+  return d>=0?d:null;
+}
+function frtuDownRows(){
+  return FRTU_STATUS.filter(r=>r.state!=='Online' && frtuPassFilter(r))
+    .map(r=>({r,days:frtuDaysDown(r)}))
+    .sort((a,b)=>(b.days==null?-1:b.days)-(a.days==null?-1:a.days) || a.r.code.localeCompare(b.r.code));
+}
+function frtuRenderTable(){
+  const body=document.getElementById('frtu2TblBody'); if(!body) return;
+  const rows=frtuDownRows();
+  document.getElementById('frtu2TblCount').textContent=fmt(rows.length)+' รายการที่ไม่ออนไลน์';
+  if(!rows.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;color:#64748b;padding:14px">ไม่มีอุปกรณ์ที่ไม่ออนไลน์ตามตัวกรองนี้</td></tr>'; return; }
+  body.innerHTML=rows.map(({r,days})=>{
+    const dc=days==null?'#64748b':days>=30?'#f87171':days>=7?'#fbbf24':'#cbd5e1';
+    const noPin=r.lat==null?' <span style="color:#64748b;font-size:.7rem">(ไม่มีพิกัด)</span>':'';
+    return '<tr data-code="'+escH(r.code)+'" style="cursor:'+(r.lat==null?'default':'pointer')+'">'
+      +'<td><b>'+escH(r.code)+'</b>'+noPin+'<br><span style="color:#64748b;font-size:.72rem">'+escH(r.alias||'')+'</span></td>'
+      +'<td><span style="color:'+frtuStateColor(r.state)+';font-weight:700">'+escH(r.state)+'</span></td>'
+      +'<td>'+escH(r.gff||'')+'</td><td>'+escH(r.loc||'')+'</td>'
+      +'<td style="text-align:center;color:'+dc+';font-weight:700">'+(days==null?'-':fmt(days))+'</td>'
+      +'<td>'+escH(r.note||'')+'</td></tr>';
+  }).join('');
+}
+function frtuFocus(code){
+  const r=FRTU_STATUS.find(x=>x.code===code);
+  if(!r||r.lat==null||!frtuMapObj) return;
+  const mapEl=document.getElementById('frtuStatusMap');
+  if(mapEl&&mapEl.scrollIntoView) mapEl.scrollIntoView({behavior:'smooth',block:'center'});
+  frtuMapObj.setView([r.lat,r.lng],16);
+  const mk=frtuMarkerByCode[code]; if(mk&&mk.openPopup) setTimeout(()=>mk.openPopup(),300);
+}
+function frtuExportCsv(){
+  const rows=frtuDownRows();
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[['รหัส','Alias','สถานะ','การไฟฟ้า','สถานที่','ไม่ออนไลน์ตั้งแต่','จำนวนวัน','หมายเหตุ','lat','lng'].map(q).join(',')];
+  rows.forEach(({r,days})=>lines.push([r.code,r.alias,r.state,r.gff,r.loc,r.since?frtuSinceText(r.since).split(' ')[0]:'',days==null?'':days,r.note,r.lat,r.lng].map(q).join(',')));
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  const d=new Date();
+  a.href=URL.createObjectURL(blob);
+  a.download='FRTU_ไม่ออนไลน์_'+d.getDate()+'-'+(d.getMonth()+1)+'-'+(d.getFullYear()+543)+'.csv';
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+}
+function frtuBuildGffOptions(){
+  if(!MPICKS['frtu2GffSelect']) mpickCreate('frtu2GffSelect','ทุกการไฟฟ้า',(set)=>{ frtuRenderMarkers(); frtuFitToSelection(set); });
+  // ตัวเลขด้านหลังชื่อ = จำนวนที่ไม่ออนไลน์ / ทั้งหมด ของการไฟฟ้านั้น
+  const tot={}, down={};
+  FRTU_STATUS.forEach(r=>{ if(!r.gff) return; tot[r.gff]=(tot[r.gff]||0)+1; if(r.state!=='Online') down[r.gff]=(down[r.gff]||0)+1; });
+  const counts={}; Object.keys(tot).forEach(g=>{ counts[g]=(down[g]||0)+'/'+tot[g]; });
+  MPICKS['frtu2GffSelect'].setItems(Object.keys(tot), counts);
+}
+function frtuFitToSelection(set){
+  if(!frtuMapObj||!set||!set.size) return;
+  const pts=FRTU_STATUS.filter(r=>r.lat!=null&&frtuPassFilter(r)).map(r=>[r.lat,r.lng]);
+  if(pts.length) frtuMapObj.fitBounds(L.latLngBounds(pts),{maxZoom:13,padding:[30,30]});
+}
+// คลิกการ์ดสรุป = ดูเฉพาะสถานะนั้น (คลิกการ์ด "ทั้งหมด" = แสดงทุกสถานะ)
+function frtuKpiFilter(state){
+  FRTU_STATES.forEach(st=>{ frtuFilters.states[st]= !state || st===state; });
+  document.querySelectorAll('.map-toolbar input[data-fstate]').forEach(cb=>{ cb.checked=!!frtuFilters.states[cb.dataset.fstate]; });
+  frtuRenderMarkers();
+}
 function frtuRenderMarkers(){
   Object.keys(frtuGroups).forEach(state=>frtuGroups[state].clearLayers());
+  frtuMarkerByCode={};
   const matched=[];
   FRTU_STATUS.forEach(r=>{
     if(r.lat==null) return;
     if(!frtuPassFilter(r)) return;
     matched.push(r);
-    const m=L.circleMarker([r.lat,r.lng],{radius:6,color:'#1e1b2e',weight:1,fillColor:frtuStateColor(r.state),fillOpacity:0.9});
+    const m=L.circleMarker([r.lat,r.lng],{radius:MARKER_R,color:'#1e1b2e',weight:1,fillColor:frtuStateColor(r.state),fillOpacity:0.9});
     m.bindPopup(frtuPopupHtml(r));
-    frtuGroups[r.state].addLayer(m);
+    frtuMarkerByCode[r.code]=m;
+    if(frtuGroups[r.state]) frtuGroups[r.state].addLayer(m);
   });
   if(frtuFilters.q && matched.length){
     frtuMapObj.fitBounds(L.latLngBounds(matched.map(r=>[r.lat,r.lng])),{maxZoom:14,padding:[30,30]});
   }
+  frtuRenderTable();
 }
 
 function initFrtuMap(){
@@ -2263,12 +2613,14 @@ function initFrtuMap(){
   frtuMapInited=true;
   frtuFillKPIs();
 
-  const gffSet=new Set();
-  FRTU_STATUS.forEach(r=>{ if(r.gff) gffSet.add(r.gff); });
-  const sel=document.getElementById('frtu2GffSelect');
-  [...gffSet].sort().forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o); });
+  frtuBuildGffOptions();
+  const tb=document.getElementById('frtu2TblBody');
+  if(tb) tb.addEventListener('click',(e)=>{ const tr=e.target.closest&&e.target.closest('tr[data-code]'); if(tr) frtuFocus(tr.dataset.code); });
+  document.querySelectorAll('#panel-frtuava .map-kpi[data-kstate]').forEach(card=>{
+    card.addEventListener('click',()=>frtuKpiFilter(card.dataset.kstate==='all'?'':card.dataset.kstate));
+  });
 
-  frtuMapObj=L.map('frtuStatusMap',{scrollWheelZoom:true, preferCanvas:true}).setView([10.3,99.3],7);
+  frtuMapObj=L.map('frtuStatusMap',{scrollWheelZoom:true, preferCanvas:true, renderer:mapRenderer()}).setView([10.3,99.3],7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; OpenStreetMap contributors', maxZoom:18
   }).addTo(frtuMapObj);
@@ -2286,7 +2638,6 @@ function initFrtuMap(){
       frtuRenderMarkers();
     });
   });
-  sel.addEventListener('change', ()=>{ frtuFilters.gff=sel.value; frtuRenderMarkers(); });
   document.getElementById('frtu2SearchInput').addEventListener('input', (e)=>{
     frtuFilters.q=e.target.value.trim().toUpperCase();
     frtuRenderMarkers();
@@ -2303,6 +2654,10 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('sbDate').textContent=d;
   initSwap(); initJA(); initCapa(); initFRTU(); initPM();
   liveRefreshFromSheets();
+  // เปิดแดชบอร์ดค้างไว้ (เช่นจอ TV) แล้วกลับมาดูหลังผ่านไป >10 นาที -> ซิงค์ใหม่อัตโนมัติ
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden && Date.now()-liveSyncLastAt>10*60*1000) liveRefreshFromSheets();
+  });
 });
 </script>
 </body>
