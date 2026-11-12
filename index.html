@@ -221,6 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
   .lb-row:hover{border-color:#6851A3;background:#EDE8F7}
   .lb-row.active-filter{border-color:#6851A3;background:#EDE8F7}
   .lb-rank{display:none}
+  .lb-row{cursor:pointer}
   .lb-rank.rank-1{color:#f59e0b}
   .lb-rank.rank-2{color:#94a3b8}
   .lb-rank.rank-3{color:#b45309}
@@ -1495,13 +1496,26 @@ function buildJALeaderboard(){
     const rankCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-rest';
     const rankTxt=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
     const color=pct>=80?'#16a34a':pct>=50?'#f59e0b':'#ef4444';
-    html+='<div class="lb-row"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
+    html+='<div class="lb-row" data-name="'+escH(name)+'" onclick="lbPick(this,\'ja-filter-gff\',filterJa)"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
     html+='<div class="lb-body"><div class="lb-name">'+name+'</div>';
     html+='<div class="lb-bar-bg"><div class="lb-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
     html+='<div class="lb-meta"><span class="lb-count">'+v.reg+'/'+v.total+'</span><span class="lb-pct" style="color:'+color+'">'+pct+'%</span></div>';
     html+='</div></div>';
   });
   document.getElementById('jaLeaderboard').innerHTML=html;
+}
+// คลิกการ์ดการไฟฟ้าเพื่อกรองตาราง (คลิกซ้ำ = ยกเลิก)
+function lbPick(el,selId,fn){
+  const sel=document.getElementById(selId); if(!sel) return;
+  const name=el.getAttribute('data-name')||'';
+  const cur=sel.value;
+  const on=(cur!==name);
+  sel.value=on?name:'';
+  if(on && sel.value!==name){ sel.value=''; return; }
+  fn();
+  const grid=el.parentNode;
+  grid.querySelectorAll('.lb-row').forEach(x=>x.classList.toggle('active-filter',on&&x===el));
+  try{ (document.getElementById(selId).parentNode).scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
 }
 function filterJa(){
   const q=(document.getElementById('ja-search').value||'').toLowerCase();
@@ -1594,7 +1608,7 @@ function buildCapaLeaderboard(){
     const rankCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-rest';
     const rankTxt=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
     const color=pct>=80?'#16a34a':pct>=50?'#f59e0b':'#ef4444';
-    html+='<div class="lb-row"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
+    html+='<div class="lb-row" data-name="'+escH(name)+'" onclick="lbPick(this,\'capa-filter-gff\',filterCapa)"><div class="lb-rank '+rankCls+'">'+rankTxt+'</div>';
     html+='<div class="lb-body"><div class="lb-name">'+name+'</div>';
     html+='<div class="lb-bar-bg"><div class="lb-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
     html+='<div class="lb-meta"><span class="lb-count">'+v.done+'/'+v.total+'</span><span class="lb-pct" style="color:'+color+'">'+pct+'%</span></div>';
