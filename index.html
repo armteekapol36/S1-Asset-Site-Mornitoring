@@ -568,6 +568,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="nav-item" onclick="showPanel('capa',this)" data-panel="capa">
       <span class="nav-icon">⚡</span><span>Capa Unit</span>
     </div>
+    <div class="nav-item" onclick="showPanel('sf6',this)" data-panel="sf6">
+      <span class="nav-icon">🧪</span><span>SF6 Switch Scan</span>
+    </div>
     <div class="nav-section" style="margin-top:8px">งานแก้ไข/บำรุงรักษา</div>
     <div class="nav-item" onclick="showPanel('frtu',this)" data-panel="frtu">
       <span class="nav-icon">📡</span><span>ติดตามแก้ไข FRTU</span>
@@ -884,6 +887,17 @@ document.addEventListener('DOMContentLoaded', function() {
       referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
   </div>
 
+  <div class="tab-panel" id="panel-sf6" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0">
+    <div style="display:flex;flex-direction:column;height:100%">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;background:#1a1530;color:#c4b5fd;font-size:.85rem">
+        <span>ถ้าหน้าด้านล่างไม่แสดง (เช่น ต้องเข้าสู่ระบบ Google) ให้กดเปิดในแท็บใหม่</span>
+        <a href="https://script.google.com/macros/s/AKfycbydvVQZSMqO-6QYi_H7fC54iPfeReQbw0JD7n8VATFDCSgWu1-K4ZxMoQJd33qHKPjY/exec" target="_blank" rel="noopener" style="background:#7c3aed;color:#fff;padding:6px 14px;border-radius:8px;text-decoration:none;font-weight:600;white-space:nowrap">↗ เปิด SF6 Switch Scan ในแท็บใหม่</a>
+      </div>
+      <iframe id="iframe-sf6" title="SF6 Switch Scan" style="flex:1;width:100%;border:none;display:block;background:#fff"
+        referrerpolicy="no-referrer-when-downgrade" allow="camera; geolocation; clipboard-write" loading="lazy"></iframe>
+    </div>
+  </div>
+
   <div class="tab-panel" id="panel-vischeck" style="height:calc(100vh - 64px);margin:-22px -24px;padding:0">
     <iframe id="iframe-vischeck" title="Visual Check" style="width:100%;height:100%;border:none;display:block;background:#0d0a1e"
       referrerpolicy="no-referrer-when-downgrade" loading="lazy"></iframe>
@@ -1001,9 +1015,10 @@ const panelTitles = {
   pbo:['รายงาน ผบอ.','แดชบอร์ดรายงานการทำงานแผนก ผบอ'],
   frtuava:['สถานะ FRTU','ระบบติดตามสถานะ FRTU'],
   about:['แนะนำทีมงาน','แผนกบำรุงรักษาอุปกรณ์ระบบไฟฟ้า'],
-  vischeck:['Visual Check','ตรวจสอบสภาพ Recloser / Capacitor']
+  vischeck:['Visual Check','ตรวจสอบสภาพ Recloser / Capacitor'],
+  sf6:['SF6 Switch Scan','ติดตามหน้างาน — สแกน SF6 Switch']
 };
-const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/", vischeck: "https://armteekapol36.github.io/recloser-capacitor-dashboard/" };
+const IFRAME_PANELS = { pbo: "https://armteekapol36.github.io/pbo-dashboard/", vischeck: "https://armteekapol36.github.io/recloser-capacitor-dashboard/", sf6: "https://script.google.com/macros/s/AKfycbydvVQZSMqO-6QYi_H7fC54iPfeReQbw0JD7n8VATFDCSgWu1-K4ZxMoQJd33qHKPjY/exec" };
 
 // ===== Sidebar =====
 function toggleSidebar(){
